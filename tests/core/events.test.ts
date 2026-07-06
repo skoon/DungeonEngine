@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { EventBus } from './events';
+import { EventBus } from '@/core/events';
 
 describe('EventBus', () => {
   it('delivers events to type-specific subscribers', () => {

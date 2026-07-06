@@ -8,7 +8,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const CORE_DIR = dirname(fileURLToPath(import.meta.url));
+// This test lives in tests/core/ but audits the real source in src/core/.
+const CORE_DIR = join(dirname(fileURLToPath(import.meta.url)), '../../src/core');
 const FORBIDDEN_IMPORTS = ['/render/', '/input/', '/audio/', '../render', '../input', '../audio'];
 const FORBIDDEN_GLOBALS = /\b(window|document|requestAnimationFrame|HTMLElement|localStorage)\b/;
 

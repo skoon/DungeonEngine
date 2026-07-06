@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, createTimestep, MAX_FRAME_MS, SIM_TICK_MS } from './timestep';
+import { advance, createTimestep, MAX_FRAME_MS, SIM_TICK_MS } from '@/core/timestep';
 
 describe('fixed timestep', () => {
   it('accumulates sub-tick frames without stepping', () => {

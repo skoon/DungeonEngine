@@ -8,7 +8,7 @@ import {
   turnLeft,
   turnRight,
   vecEquals,
-} from './grid';
+} from '@/core/grid';
 
 const ALL: DirType[] = [Dir.N, Dir.E, Dir.S, Dir.W];
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Rng } from './rng';
+import { Rng } from '@/core/rng';
 
 describe('Rng', () => {
   it('is deterministic for a given seed', () => {

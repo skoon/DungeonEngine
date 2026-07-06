@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Dir } from './grid';
-import { EventBus, type GameEvent } from './events';
-import { parseMap } from './mapParser';
-import { Party, stepDirection, tryStep, turned } from './party';
+import { Dir } from '@/core/grid';
+import { EventBus, type GameEvent } from '@/core/events';
+import { parseMap } from '@/core/mapParser';
+import { Party, stepDirection, tryStep, turned } from '@/core/party';
 
 // 3x3 open room, start dead centre facing East.
 const room = parseMap({

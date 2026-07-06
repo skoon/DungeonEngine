@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { Dir, type Vec2 } from '../../core/grid';
-import { floorCount, reachableCells } from '../../core/dungeon';
-import { parseMap } from '../../core/mapParser';
-import { Party, type StepDir, type TurnDir } from '../../core/party';
-import { EventBus } from '../../core/events';
-import { level1 } from './level1';
+import { Dir, type Vec2 } from '@/core/grid';
+import { floorCount, reachableCells } from '@/core/dungeon';
+import { parseMap } from '@/core/mapParser';
+import { Party, type StepDir, type TurnDir } from '@/core/party';
+import { EventBus } from '@/core/events';
+import { level1 } from '@/data/maps/level1';
 
 const level = parseMap(level1);
 

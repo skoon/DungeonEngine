@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Dir } from './grid';
+import { Dir } from '@/core/grid';
 import {
   blockReason,
   canEnter,
@@ -7,8 +7,8 @@ import {
   edgeKey,
   inBounds,
   isWalkable,
-} from './dungeon';
-import { parseMap } from './mapParser';
+} from '@/core/dungeon';
+import { parseMap } from '@/core/mapParser';
 
 // 3x3 room, walls all around, party start centre, one thin wall on the East
 // side of the centre cell.

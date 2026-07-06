@@ -38,6 +38,22 @@ export class Screen {
     return this.currentScale;
   }
 
+  /**
+   * Map a client (mouse) coordinate to backbuffer pixel space, or null if
+   * it falls outside the canvas. Uses the CSS rect so it is independent of
+   * devicePixelRatio.
+   */
+  clientToBackbuffer(clientX: number, clientY: number): { x: number; y: number } | null {
+    const rect = this.display.getBoundingClientRect();
+    if (clientX < rect.left || clientY < rect.top || clientX >= rect.right || clientY >= rect.bottom) {
+      return null;
+    }
+    return {
+      x: ((clientX - rect.left) / rect.width) * NATIVE_WIDTH,
+      y: ((clientY - rect.top) / rect.height) * NATIVE_HEIGHT,
+    };
+  }
+
   present(): void {
     this.displayCtx.imageSmoothingEnabled = false;
     this.displayCtx.drawImage(

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { Dir } from './grid';
-import { isWalkable } from './dungeon';
-import { parseMap } from './mapParser';
+import { Dir } from '@/core/grid';
+import { isWalkable } from '@/core/dungeon';
+import { parseMap } from '@/core/mapParser';
 
 describe('parseMap', () => {
   it('parses dimensions, floor/solid and the start pose', () => {
