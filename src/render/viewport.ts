@@ -11,6 +11,7 @@
 import { type Dir, type Vec2, turnLeft, turnRight } from '../core/grid';
 import { type Level, cellAt, cellTriggerAt, edgeAt, type EdgeWall } from '../core/dungeon';
 import type { Item } from '../core/item';
+import type { Monster } from '../core/monster';
 import { SWEETIE16 } from './palette';
 import { drawItemIcon } from './itemIcon';
 import { text } from './text';
@@ -47,6 +48,7 @@ export function drawViewport(
   ctx: CanvasRenderingContext2D,
   level: Level,
   pose: Pose,
+  monsters: Monster[] = [],
   opts: ViewportOpts = {},
 ): void {
   ctx.save();
@@ -56,8 +58,15 @@ export function drawViewport(
 
   drawCeilingFloor(ctx);
 
+  const byCell = new Map<string, Monster>();
+  for (const m of monsters) if (m.state !== 'dead') byCell.set(`${m.pos.x},${m.pos.y}`, m);
+
   const slots = buildScene(level, pose);
-  for (const slot of slots) drawSlot(ctx, level, pose.facing, slot);
+  for (const slot of slots) {
+    drawSlot(ctx, level, pose.facing, slot);
+    const m = byCell.get(`${slot.cell.x},${slot.cell.y}`);
+    if (m && slot.row <= 3) drawMonster(ctx, slot.row, slot.lat, m);
+  }
 
   if (opts.showSlots) drawSlotOverlay(ctx, slots);
 
@@ -262,6 +271,40 @@ function drawFloorMarker(ctx: CanvasRenderingContext2D, kind: string, row: numbe
     default:
       break;
   }
+}
+
+const MONSTER_H = [128, 82, 52, 36];
+
+function drawMonster(ctx: CanvasRenderingContext2D, row: number, lat: number, m: Monster): void {
+  const foot = centroid(floorQuad(row, lat));
+  const h = MONSTER_H[row] ?? 30;
+  const w = h * 0.55;
+  const cx = foot.x;
+  const top = foot.y - h;
+  const body = m.flash > 0 ? SWEETIE16.red : m.species.color;
+
+  // Body + head, outlined.
+  ctx.fillStyle = body;
+  ctx.strokeStyle = SWEETIE16.black;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(cx, top + h * 0.64, w * 0.5, h * 0.36, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, top + h * 0.24, w * 0.34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  text(ctx, m.species.glyph, Math.round(cx - 2), Math.round(top + h * 0.16), SWEETIE16.black);
+
+  // HP pip above the head.
+  const bw = w * 0.9;
+  const ratio = Math.max(0, m.hp.cur / m.hp.max);
+  ctx.fillStyle = SWEETIE16.ink;
+  ctx.fillRect(Math.round(cx - bw / 2), Math.round(top - 5), Math.round(bw), 2);
+  ctx.fillStyle = SWEETIE16.red;
+  ctx.fillRect(Math.round(cx - bw / 2), Math.round(top - 5), Math.round(bw * ratio), 2);
 }
 
 function drawFloorItems(ctx: CanvasRenderingContext2D, row: number, lat: number, items: Item[]): void {

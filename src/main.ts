@@ -96,7 +96,8 @@ window.addEventListener('keydown', (ev) => {
     ev.preventDefault();
     return;
   }
-  if (k === 'm') debug.minimap = !debug.minimap;
+  if (k >= '1' && k <= '4') world.attack(Number(k) - 1);
+  else if (k === 'm') debug.minimap = !debug.minimap;
   else if (k === 'g') debug.slots = !debug.slots;
 });
 
@@ -114,7 +115,7 @@ window.addEventListener(
 );
 
 bus.emit({ type: 'log/message', channel: 'system', text: `You enter ${level.name}.` });
-bus.emit({ type: 'log/message', channel: 'ambient', text: 'WASD/arrows move, Q/E turn, Space use, I inventory.' });
+bus.emit({ type: 'log/message', channel: 'ambient', text: 'Move WASD/arrows, turn Q/E, use Space, attack 1-4, inv I.' });
 
 function renderFrame(): void {
   const { ctx } = screen;
@@ -126,7 +127,7 @@ function renderFrame(): void {
   const pose = world.party.getPose();
   drawChrome(ctx);
   if (debug.minimap) drawMinimap(ctx, level, pose);
-  else drawViewport(ctx, level, pose, { showSlots: debug.slots });
+  else drawViewport(ctx, level, pose, world.monsters, { showSlots: debug.slots });
   drawPartyPanel(ctx, roster, pose.facing);
   logPanel.draw(ctx);
   screen.present();

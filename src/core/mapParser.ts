@@ -22,6 +22,7 @@ import { type Dir, Dir as D } from './grid';
 import type { CellTrigger, EdgeWall, Interactable, Level } from './dungeon';
 import { edgeKey } from './dungeon';
 import type { Item } from './item';
+import type { MonsterSpecies, MonsterSpawn } from './monster';
 
 export interface EdgeSpec {
   x: number;
@@ -53,6 +54,13 @@ export interface FloorSpec {
   items: Item[];
 }
 
+export interface MonsterSpec {
+  x: number;
+  y: number;
+  species: MonsterSpecies;
+  facing?: Dir;
+}
+
 export interface MapSource {
   name: string;
   ascii: string;
@@ -62,6 +70,8 @@ export interface MapSource {
   triggers?: TriggerSpec[];
   /** Loose items lying on cell floors. */
   floor?: FloorSpec[];
+  /** Monster spawn placements. */
+  monsters?: MonsterSpec[];
 }
 
 const START_FACING: Record<string, Dir> = {
@@ -132,7 +142,14 @@ export function parseMap(source: MapSource): Level {
     cells[spec.y * width + spec.x]!.items = [...spec.items];
   }
 
-  return { name: source.name, width, height, cells, edges, start };
+  const spawns: MonsterSpawn[] = (source.monsters ?? []).map((m) => {
+    if (m.x < 0 || m.y < 0 || m.x >= width || m.y >= height) {
+      throw new Error(`monster at ${m.x},${m.y} is out of bounds`);
+    }
+    return { pos: { x: m.x, y: m.y }, facing: m.facing ?? D.N, species: m.species };
+  });
+
+  return { name: source.name, width, height, cells, edges, start, spawns };
 }
 
 function buildEdge(spec: EdgeSpec): EdgeWall {

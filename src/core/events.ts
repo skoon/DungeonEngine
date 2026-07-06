@@ -16,7 +16,7 @@ export type GameEvent =
   | { type: 'log/message'; channel: LogChannel; text: string }
   | { type: 'party/moved'; x: number; y: number; facing: Dir; fromX: number; fromY: number }
   | { type: 'party/turned'; facing: Dir }
-  | { type: 'party/blocked'; reason: 'wall' | 'edge'; facing: Dir }
+  | { type: 'party/blocked'; reason: 'wall' | 'edge' | 'monster'; facing: Dir }
   | { type: 'party/teleported'; x: number; y: number; facing: Dir }
   | { type: 'party/fell' }
   | { type: 'door/toggled'; x: number; y: number; dir: Dir; open: boolean }
@@ -25,7 +25,10 @@ export type GameEvent =
   | { type: 'char/damaged'; member: number; amount: number; hpCur: number }
   | { type: 'char/down'; member: number }
   | { type: 'item/taken'; name: string }
-  | { type: 'item/dropped'; name: string };
+  | { type: 'item/dropped'; name: string }
+  | { type: 'attack/resolved'; by: 'party' | 'monster'; hit: boolean; damage: number }
+  | { type: 'monster/died'; name: string; xp: number }
+  | { type: 'party/wiped' };
 
 export type EventType = GameEvent['type'];
 export type EventOf<T extends EventType> = Extract<GameEvent, { type: T }>;

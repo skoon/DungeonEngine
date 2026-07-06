@@ -17,6 +17,7 @@
 import { type Dir, type Vec2, translate } from './grid';
 import type { Action } from './triggers';
 import type { Item } from './item';
+import type { MonsterSpawn } from './monster';
 
 export interface Cell {
   /** Solid rock — unexcavated, never walkable. */
@@ -87,6 +88,8 @@ export interface Level {
   /** Canonical edge key -> wall. Absent key means "open edge". */
   edges: Map<string, EdgeWall>;
   start: { pos: Vec2; facing: Dir };
+  /** Monster spawn placements; the World instantiates live monsters. */
+  spawns: MonsterSpawn[];
 }
 
 export function cellIndex(level: Level, x: number, y: number): number {

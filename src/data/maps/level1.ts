@@ -20,6 +20,7 @@
 import { Dir } from '../../core/grid';
 import type { MapSource } from '../../core/mapParser';
 import { item } from '../items';
+import { KOBOLD, SKELETON } from '../monsters';
 
 export const level1: MapSource = {
   name: 'The Pillared Hall',
@@ -77,6 +78,13 @@ export const level1: MapSource = {
   floor: [
     // Loose rations on the floor of the entry hall.
     { x: 2, y: 2, items: [item('rations')] },
+  ],
+  // Undead and a kobold guarding the lower hall (kept off the exact solution
+  // cells so they wake and give chase rather than hard-blocking the route).
+  monsters: [
+    { x: 3, y: 5, species: SKELETON, facing: Dir.S },
+    { x: 7, y: 6, species: SKELETON, facing: Dir.W },
+    { x: 4, y: 5, species: KOBOLD, facing: Dir.S },
   ],
   triggers: [
     {

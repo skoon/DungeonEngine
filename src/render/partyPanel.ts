@@ -25,14 +25,20 @@ const COND_ICON: Record<string, string> = {
 export function drawPartyPanel(ctx: CanvasRenderingContext2D, roster: Roster, facing: Dir): void {
   roster.members.forEach((member, i) => {
     const rect = PARTY_CARDS[i];
-    if (rect) drawCard(ctx, rect, member);
+    if (rect) drawCard(ctx, rect, member, (roster.hurt[i] ?? 0) > 0);
   });
   drawCompass(ctx, facing);
 }
 
-function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character): void {
+function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: boolean): void {
   const down = isDisabled(c);
   const accent = down ? COLORS.textDim : CLASS_COLOR[CLASSES[c.clazz].name] ?? COLORS.text;
+
+  // Damage flash: red wash over the whole card.
+  if (hurt) {
+    ctx.fillStyle = SWEETIE16.red;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+  }
 
   // Portrait (greyed when down).
   const px = r.x + 4;
@@ -71,6 +77,15 @@ function hand(ctx: CanvasRenderingContext2D, c: Character, index: 0 | 1, x: numb
   const it = c.hands[index];
   if (it) drawItemIcon(ctx, it, x, y, 16);
   else text(ctx, index === 0 ? 'L' : 'R', x + 5, y + 4, COLORS.textDim);
+
+  // Cooldown wipe: darken the top portion in proportion to time remaining.
+  const remaining = c.cooldowns[index] ?? 0;
+  if (remaining > 0) {
+    const full = it?.tpl.cooldownMs ?? 500;
+    const ratio = Math.max(0, Math.min(1, remaining / full));
+    ctx.fillStyle = 'rgba(26,28,44,0.7)';
+    ctx.fillRect(x + 1, y + 1, 14, Math.round(14 * ratio));
+  }
 }
 
 function bar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, cur: number, max: number, fill: string): void {

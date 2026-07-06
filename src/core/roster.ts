@@ -8,11 +8,29 @@ import { type Character, firstFreePack, isDisabled } from './character';
 import type { Item } from './item';
 import type { EventBus } from './events';
 
+const FLASH_MS = 220;
+
 export class Roster {
-  constructor(public readonly members: Character[]) {}
+  /** Per-member hurt-flash timer (ms), for the party-panel damage flash. */
+  readonly hurt: number[];
+
+  constructor(public readonly members: Character[]) {
+    this.hurt = members.map(() => 0);
+  }
 
   member(i: number): Character | undefined {
     return this.members[i];
+  }
+
+  /** Advance hurt-flash timers. */
+  tickFlash(dtMs: number): void {
+    for (let i = 0; i < this.hurt.length; i++) {
+      this.hurt[i] = Math.max(0, (this.hurt[i] ?? 0) - dtMs);
+    }
+  }
+
+  everyoneDown(): boolean {
+    return this.members.every((c) => isDisabled(c));
   }
 
   frontRank(): Character[] {
@@ -51,6 +69,7 @@ export class Roster {
     if (!c) return;
     const wasDown = isDisabled(c);
     c.hp.cur = Math.max(0, c.hp.cur - amount);
+    this.hurt[index] = FLASH_MS;
     bus.emit({ type: 'char/damaged', member: index, amount, hpCur: c.hp.cur });
     if (c.hp.cur <= 0 && !wasDown) {
       c.conditions.add('unconscious');
