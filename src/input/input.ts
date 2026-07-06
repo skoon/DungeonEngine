@@ -14,7 +14,8 @@ export type MoveAction =
   | 'strafeLeft'
   | 'strafeRight'
   | 'turnLeft'
-  | 'turnRight';
+  | 'turnRight'
+  | 'use';
 
 export type MoveHandlers = Record<MoveAction, () => void>;
 
@@ -29,6 +30,9 @@ const KEY_MAP: Record<string, MoveAction> = {
   arrowleft: 'turnLeft',
   e: 'turnRight',
   arrowright: 'turnRight',
+  ' ': 'use', // spacebar
+  f: 'use',
+  enter: 'use',
 };
 
 /** Binds keydown handling; returns a cleanup that removes the listener. */

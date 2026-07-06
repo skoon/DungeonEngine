@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { Dir } from '@/core/grid';
 import { parseMap } from '@/core/mapParser';
 import { buildScene, type WallSlot } from '@/render/scene';
-import { level1 } from '@/data/maps/level1';
 
 function find(slots: WallSlot[], row: number, lat: number): WallSlot | undefined {
   return slots.find((s) => s.row === row && s.lat === lat);
@@ -51,11 +50,20 @@ describe('buildScene — open room lateral funnel', () => {
 });
 
 describe('buildScene — a thin edge wall counts as a front wall', () => {
-  const level = parseMap(level1);
-  // (1,1)->(2,1) is blocked by an edge wall though both cells are floor.
-  const slots = buildScene(level, { pos: { x: 1, y: 1 }, facing: Dir.E });
+  // Both (1,1) and (2,1) are floor, but an edge wall sits between them.
+  const level = parseMap({
+    name: 'edge',
+    ascii: '####\n#>.#\n####',
+    edges: [{ x: 1, y: 1, dir: Dir.E }],
+  });
+  const slots = buildScene(level, level.start);
 
   it('marks the near cell front wall from the edge, not a solid', () => {
     expect(find(slots, 0, 0)?.front).toBe(true);
+  });
+
+  it('does not see the open cell hidden behind the edge wall', () => {
+    // (2,1) is floor but occluded by the edge wall — no slot for it.
+    expect(find(slots, 1, 0)).toBeUndefined();
   });
 });

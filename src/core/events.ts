@@ -16,7 +16,11 @@ export type GameEvent =
   | { type: 'log/message'; channel: LogChannel; text: string }
   | { type: 'party/moved'; x: number; y: number; facing: Dir; fromX: number; fromY: number }
   | { type: 'party/turned'; facing: Dir }
-  | { type: 'party/blocked'; reason: 'wall' | 'edge'; facing: Dir };
+  | { type: 'party/blocked'; reason: 'wall' | 'edge'; facing: Dir }
+  | { type: 'party/teleported'; x: number; y: number; facing: Dir }
+  | { type: 'party/fell' }
+  | { type: 'door/toggled'; x: number; y: number; dir: Dir; open: boolean }
+  | { type: 'interact/used'; kind: 'button' | 'lever' };
 
 export type EventType = GameEvent['type'];
 export type EventOf<T extends EventType> = Extract<GameEvent, { type: T }>;

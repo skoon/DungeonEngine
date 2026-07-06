@@ -96,6 +96,27 @@ export class Party {
     this.bus.emit({ type: 'party/turned', facing: this.pose.facing });
   }
 
+  /** Instantly relocate (teleporter/stairs). Facing kept unless supplied. */
+  teleport(pos: Vec2, facing?: Dir): void {
+    const from = this.pose.pos;
+    this.pose = { pos: { ...pos }, facing: facing ?? this.pose.facing };
+    this.bus.emit({
+      type: 'party/moved',
+      x: pos.x,
+      y: pos.y,
+      facing: this.pose.facing,
+      fromX: from.x,
+      fromY: from.y,
+    });
+    this.bus.emit({ type: 'party/teleported', x: pos.x, y: pos.y, facing: this.pose.facing });
+  }
+
+  /** Set facing directly (spinner). */
+  setFacing(facing: Dir): void {
+    this.pose = { pos: { ...this.pose.pos }, facing };
+    this.bus.emit({ type: 'party/turned', facing });
+  }
+
   stepForward(): boolean {
     return this.step('forward');
   }

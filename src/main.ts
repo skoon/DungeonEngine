@@ -1,6 +1,7 @@
 import { EventBus } from './core/events';
 import { parseMap } from './core/mapParser';
-import { Party } from './core/party';
+import { World } from './core/world';
+import { Rng } from './core/rng';
 import { level1 } from './data/maps/level1';
 import { Screen } from './render/screen';
 import { drawChrome } from './render/chrome';
@@ -18,17 +19,18 @@ if (!container) throw new Error('#app container missing');
 const screen = new Screen(container);
 const bus = new EventBus();
 const level = parseMap(level1);
-const party = new Party(level, bus);
+const world = new World(level, bus, new Rng(Date.now() >>> 0));
 const logPanel = new LogPanel(bus);
 
-// Movement keys drive the core Party; its emitted events feed the log.
+// Movement/interaction keys drive the World; its events feed the log.
 bindKeyboard({
-  forward: () => party.stepForward(),
-  back: () => party.stepBack(),
-  strafeLeft: () => party.strafeLeft(),
-  strafeRight: () => party.strafeRight(),
-  turnLeft: () => party.turnLeft(),
-  turnRight: () => party.turnRight(),
+  forward: () => world.stepForward(),
+  back: () => world.stepBack(),
+  strafeLeft: () => world.strafeLeft(),
+  strafeRight: () => world.strafeRight(),
+  turnLeft: () => world.turnLeft(),
+  turnRight: () => world.turnRight(),
+  use: () => world.use(),
 });
 
 // Mouse-wheel scrollback over the log pane.
@@ -53,11 +55,11 @@ window.addEventListener('keydown', (ev) => {
 });
 
 bus.emit({ type: 'log/message', channel: 'system', text: `You enter ${level.name}.` });
-bus.emit({ type: 'log/message', channel: 'ambient', text: 'WASD/arrows move, Q/E turn. M=map G=grid.' });
+bus.emit({ type: 'log/message', channel: 'ambient', text: 'WASD/arrows move, Q/E turn, Space use. M=map G=grid.' });
 
 function renderFrame(): void {
   const { ctx } = screen;
-  const pose = party.getPose();
+  const pose = world.party.getPose();
   drawChrome(ctx);
   if (debug.minimap) drawMinimap(ctx, level, pose);
   else drawViewport(ctx, level, pose, { showSlots: debug.slots });
@@ -68,13 +70,14 @@ function renderFrame(): void {
 
 startLoop({
   update: (tick) => {
+    world.tick(100); // one sim tick = 100ms; advances door animations
     bus.emit({ type: 'sim/tick', tick });
   },
   render: renderFrame,
 });
 
-// Dev-only: lets a hidden preview tab (rAF suspended) force a frame for
-// verification. Stripped from production builds.
+// Dev-only: lets a hidden preview tab (rAF suspended) force a frame and
+// inspect world state for verification. Stripped from production builds.
 if (import.meta.env.DEV) {
-  (window as unknown as { __frame: () => void }).__frame = renderFrame;
+  Object.assign(window as unknown as Record<string, unknown>, { __frame: renderFrame, __world: world });
 }

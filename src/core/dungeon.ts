@@ -15,15 +15,60 @@
  */
 
 import { type Dir, type Vec2, translate } from './grid';
+import type { Action } from './triggers';
 
 export interface Cell {
   /** Solid rock — unexcavated, never walkable. */
   solid: boolean;
+  /** Optional floor trigger (plate, teleporter, pit, spinner, stairs). */
+  trigger?: CellTrigger;
+}
+
+/** A wall-mounted button or lever that runs actions when used. */
+export interface Interactable {
+  kind: 'button' | 'lever';
+  actions: Action[];
+  /** A one-shot button can only fire once. */
+  oneShot?: boolean;
+  used?: boolean;
+  /** Lever toggle state. */
+  on?: boolean;
+}
+
+export interface DoorState {
+  /** Logical open/closed — drives movement blocking immediately. */
+  open: boolean;
+  /** Animation 0 (closed) .. 1 (fully retracted); visual only. */
+  progress: number;
+  /** Renders as an ordinary wall until opened (a secret door). */
+  secret?: boolean;
 }
 
 export interface EdgeWall {
-  /** Whether this edge currently blocks movement across it. */
+  kind: 'wall' | 'door' | 'illusion';
+  /** Blocks movement across the edge (doors update this when toggled). */
   blocksMovement: boolean;
+  /** Drawn as a solid face by the renderer (illusions: true; open door: false). */
+  rendersSolid: boolean;
+  door?: DoorState;
+  /** Button/lever mounted on this wall face. */
+  interact?: Interactable;
+  /** Engraved wall text, surfaced to the log when the party faces it. */
+  text?: string;
+}
+
+/**
+ * A floor trigger. Teleporter/spinner/pit behaviour is expressed through the
+ * onEnter action list (teleport/spin/message); `kind` drives rendering and a
+ * couple of built-in behaviours (pit fall). Plates fire on enter and leave.
+ */
+export interface CellTrigger {
+  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext';
+  onEnter?: Action[];
+  onLeave?: Action[];
+  /** Whether the renderer draws a floor marker (hidden plates: false). */
+  visible?: boolean;
+  text?: string;
 }
 
 export interface Level {
@@ -80,8 +125,25 @@ export function edgeKey(x: number, y: number, dir: Dir): string {
   }
 }
 
+export function edgeAt(level: Level, x: number, y: number, dir: Dir): EdgeWall | undefined {
+  return level.edges.get(edgeKey(x, y, dir));
+}
+
 export function edgeBlocks(level: Level, x: number, y: number, dir: Dir): boolean {
   return level.edges.get(edgeKey(x, y, dir))?.blocksMovement ?? false;
+}
+
+/** Whether the renderer should draw a solid face on this edge (walls, closed
+ * or animating doors, illusions — but not a fully-open door). */
+export function edgeRendersSolid(level: Level, x: number, y: number, dir: Dir): boolean {
+  const e = edgeAt(level, x, y, dir);
+  if (!e) return false;
+  if (e.kind === 'door') return (e.door?.progress ?? 0) < 1 - 1e-6;
+  return e.rendersSolid;
+}
+
+export function cellTriggerAt(level: Level, x: number, y: number): CellTrigger | undefined {
+  return cellAt(level, x, y)?.trigger;
 }
 
 /** Why moving from (from) in `dir` is blocked, or null if the step is legal. */

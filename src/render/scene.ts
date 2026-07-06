@@ -20,7 +20,7 @@ import {
   turnLeft,
   turnRight,
 } from '../core/grid';
-import { type Level, edgeBlocks, isWalkable } from '../core/dungeon';
+import { type Level, edgeRendersSolid, isWalkable } from '../core/dungeon';
 
 export const ROWS = 4;
 const MAX_LAT = [1, 1, 2, 3] as const;
@@ -74,9 +74,19 @@ export function buildScene(level: Level, pose: Pose): WallSlot[] {
     if (cached !== undefined) return cached;
     seen.set(key, false); // guard against cycles during recursion
     const s = Math.sign(lat);
-    const throughA = see(row - 1, lat) && open(row - 1, lat);
+    // Light also stops at a solid edge (closed door, thin wall) on the front
+    // face of the cell it would pass through — so you can't see past one.
+    const a = cellAt(row - 1, lat);
+    const throughA =
+      see(row - 1, lat) &&
+      open(row - 1, lat) &&
+      !edgeRendersSolid(level, a.x, a.y, pose.facing);
+    const b = cellAt(row - 1, lat - s);
     const throughB =
-      lat !== 0 && see(row - 1, lat - s) && open(row - 1, lat - s);
+      lat !== 0 &&
+      see(row - 1, lat - s) &&
+      open(row - 1, lat - s) &&
+      !edgeRendersSolid(level, b.x, b.y, pose.facing);
     const result = throughA || throughB;
     seen.set(key, result);
     return result;
@@ -84,7 +94,7 @@ export function buildScene(level: Level, pose: Pose): WallSlot[] {
 
   const wall = (cell: Vec2, dir: Dir): boolean =>
     !isWalkable(level, translate(cell, dir).x, translate(cell, dir).y) ||
-    edgeBlocks(level, cell.x, cell.y, dir);
+    edgeRendersSolid(level, cell.x, cell.y, dir);
 
   const dirFront = pose.facing;
   const dirLeft = turnLeft(pose.facing);

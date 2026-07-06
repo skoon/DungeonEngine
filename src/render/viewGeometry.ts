@@ -84,3 +84,30 @@ export function sideQuad(row: number, lat: number, side: 'left' | 'right'): Side
     farBot: floorY(farZ),
   };
 }
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** The four floor corners of cell (row, lat), for floor markers/decals. */
+export function floorQuad(row: number, lat: number): [Point, Point, Point, Point] {
+  const nearZ = Math.max(row - 0.5, NEAR);
+  const farZ = row + 0.5;
+  return [
+    { x: gridX(nearZ, lat - 0.5), y: floorY(nearZ) },
+    { x: gridX(nearZ, lat + 0.5), y: floorY(nearZ) },
+    { x: gridX(farZ, lat + 0.5), y: floorY(farZ) },
+    { x: gridX(farZ, lat - 0.5), y: floorY(farZ) },
+  ];
+}
+
+export function centroid(pts: readonly Point[]): Point {
+  let x = 0;
+  let y = 0;
+  for (const p of pts) {
+    x += p.x;
+    y += p.y;
+  }
+  return { x: x / pts.length, y: y / pts.length };
+}

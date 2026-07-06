@@ -47,7 +47,11 @@ describe('parseMap', () => {
       edges: [{ x: 1, y: 1, dir: Dir.E }],
     });
     expect(level.edges.size).toBe(1);
-    expect(level.edges.get('v:1:1')).toEqual({ blocksMovement: true });
+    expect(level.edges.get('v:1:1')).toMatchObject({
+      kind: 'wall',
+      blocksMovement: true,
+      rendersSolid: true,
+    });
   });
 
   it('rejects ragged rows', () => {

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { Dir, type Vec2 } from '@/core/grid';
-import { floorCount, reachableCells } from '@/core/dungeon';
+import { Dir } from '@/core/grid';
+import { edgeKey, type Level } from '@/core/dungeon';
 import { parseMap } from '@/core/mapParser';
-import { Party, type StepDir, type TurnDir } from '@/core/party';
 import { EventBus } from '@/core/events';
+import { Rng } from '@/core/rng';
+import { World } from '@/core/world';
 import { level1 } from '@/data/maps/level1';
 
 const level = parseMap(level1);
@@ -12,71 +13,67 @@ describe('level 1 — The Pillared Hall', () => {
   it('parses to the expected shape and start', () => {
     expect(level.width).toBe(13);
     expect(level.height).toBe(9);
-    expect(level.start).toEqual({ pos: { x: 1, y: 5 }, facing: Dir.E });
+    expect(level.start).toEqual({ pos: { x: 1, y: 1 }, facing: Dir.E });
   });
 
-  it('is fully connected — every floor cell is reachable from the start', () => {
-    const reached = reachableCells(level, level.start.pos);
-    expect(reached.size).toBe(floorCount(level));
+  it('doors and the secret start closed; the illusion never blocks', () => {
+    expect(level.edges.get(edgeKey(6, 4, Dir.N))?.blocksMovement).toBe(true); // D1
+    expect(level.edges.get(edgeKey(8, 6, Dir.E))?.blocksMovement).toBe(true); // D2
+    expect(level.edges.get(edgeKey(4, 5, Dir.E))?.blocksMovement).toBe(true); // secret
+    expect(level.edges.get(edgeKey(3, 3, Dir.N))?.blocksMovement).toBe(false); // illusion
   });
 
-  it('has the demo edge wall between two open floor cells', () => {
-    // (1,1) and (2,1) are both floor, but stepping between them is blocked.
-    const party = new Party(level, new EventBus(), { pos: { x: 1, y: 1 }, facing: Dir.E });
-    expect(party.stepForward()).toBe(false); // edge wall
-    expect(party.getPose().pos).toEqual({ x: 1, y: 1 });
+  it('the exit cell is sealed off (teleporter-only)', () => {
+    // (11,6) has no walkable neighbour — you can only reach it by teleport.
+    expect(level.cells[6 * 13 + 10]?.solid).toBe(true); // (10,6)
+    expect(level.cells[5 * 13 + 11]?.solid).toBe(true); // (11,5)
+    expect(level.cells[7 * 13 + 11]?.solid).toBe(true); // (11,7)
   });
 });
 
-/**
- * Move-script interpreter: F/B forward/back, L/R strafe, l/r turn.
- * Records the party position after every token — the scripted-walk proof
- * that movement over the real level behaves as designed (plan M1 "done when").
- */
-function walk(party: Party, script: string): Vec2[] {
-  const trail: Vec2[] = [];
-  for (const token of script) {
-    switch (token) {
-      case 'F':
-      case 'B':
-      case 'L':
-      case 'R':
-        party.step(({ F: 'forward', B: 'back', L: 'left', R: 'right' } as Record<string, StepDir>)[token]!);
-        break;
-      case 'l':
-      case 'r':
-        party.turn(({ l: 'left', r: 'right' } as Record<string, TurnDir>)[token]!);
-        break;
-      default:
-        throw new Error(`bad script token '${token}'`);
-    }
-    const p = party.getPose().pos;
-    trail.push({ x: p.x, y: p.y });
+/** F step forward, l/r turn, u use; spaces ignored. */
+function drive(world: World, tokens: string): void {
+  for (const t of tokens) {
+    if (t === 'F') world.stepForward();
+    else if (t === 'l') world.turnLeft();
+    else if (t === 'r') world.turnRight();
+    else if (t === 'u') world.use();
+    else if (t === ' ') continue;
+    else throw new Error(`bad token '${t}'`);
   }
-  return trail;
 }
 
-describe('scripted walk over level 1', () => {
-  it('follows the intended path and stops at the north wall', () => {
-    const party = new Party(level, new EventBus());
-    // FF east to the col-3 vertical corridor (odd cols are the through
-    // corridors; even cols are pillars), turn north, run to the top wall
-    // (last F bumps the border and is a no-op), turn east, two steps.
-    const trail = walk(party, 'FFlFFFFFrFF');
-    expect(trail).toEqual([
-      { x: 2, y: 5 }, // F
-      { x: 3, y: 5 }, // F  (col 3 — a vertical corridor)
-      { x: 3, y: 5 }, // l  (turn north, no move)
-      { x: 3, y: 4 }, // F
-      { x: 3, y: 3 }, // F
-      { x: 3, y: 2 }, // F
-      { x: 3, y: 1 }, // F
-      { x: 3, y: 1 }, // F bumps the north border — no move
-      { x: 3, y: 1 }, // r (turn east, no move)
-      { x: 4, y: 1 }, // F
-      { x: 5, y: 1 }, // F
-    ]);
-    expect(party.getPose().pos).toEqual({ x: 5, y: 1 });
-    expect(party.getPose().facing).toBe(Dir.E);
+function fresh(): { world: World; log: string[]; level: Level } {
+  const lvl = parseMap(level1);
+  const bus = new EventBus();
+  const log: string[] = [];
+  bus.on('log/message', (e) => log.push(e.text));
+  return { world: new World(lvl, bus, new Rng(7)), log, level: lvl };
+}
+
+describe('level 1 is solvable start to finish', () => {
+  it('plate opens D1, button opens D2, teleporter reaches the exit', () => {
+    const { world, log } = fresh();
+    // to the plate; through the inner door; across to the button; open D2;
+    // into the teleport booth; warp to the exit.
+    drive(world, 'FFFFF r FFFFFF r FFFF l u l FFFFFF l F r F');
+    expect(world.party.getPose().pos).toEqual({ x: 11, y: 6 });
+    expect(log.some((l) => /escaped the Pillared Hall/i.test(l))).toBe(true);
+  });
+
+  it('the teleport-booth door stays shut until the button is used', () => {
+    const { world, level: lvl } = fresh();
+    drive(world, 'FFFFF r FFFFFF'); // down through D1 into the lower hall
+    expect(lvl.edges.get(edgeKey(8, 6, Dir.E))?.blocksMovement).toBe(true);
+  });
+
+  it('the pit trap fires party/fell', () => {
+    const lvl = parseMap(level1);
+    const bus = new EventBus();
+    let fell = false;
+    bus.on('party/fell', () => (fell = true));
+    const world = new World(lvl, bus, new Rng(1));
+    drive(world, 'FFFFF r FFFFF r FFF'); // into the lower hall, west onto (3,6)
+    expect(fell).toBe(true);
   });
 });
