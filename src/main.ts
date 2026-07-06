@@ -4,6 +4,7 @@ import { Party } from './core/party';
 import { level1 } from './data/maps/level1';
 import { Screen } from './render/screen';
 import { drawChrome } from './render/chrome';
+import { drawViewport } from './render/viewport';
 import { drawMinimap } from './render/minimap';
 import { drawPartyPanel } from './render/partyPanel';
 import { LogPanel } from './render/logPanel';
@@ -42,14 +43,25 @@ window.addEventListener(
   { passive: false },
 );
 
+// Debug view toggles: M swaps the first-person view for the top-down map
+// (which lives on forever as a debug aid, plan M3); G overlays frustum slots.
+const debug = { minimap: false, slots: false };
+window.addEventListener('keydown', (ev) => {
+  const k = ev.key.toLowerCase();
+  if (k === 'm') debug.minimap = !debug.minimap;
+  else if (k === 'g') debug.slots = !debug.slots;
+});
+
 bus.emit({ type: 'log/message', channel: 'system', text: `You enter ${level.name}.` });
-bus.emit({ type: 'log/message', channel: 'ambient', text: 'WASD/arrows to move, Q/E to turn.' });
+bus.emit({ type: 'log/message', channel: 'ambient', text: 'WASD/arrows move, Q/E turn. M=map G=grid.' });
 
 function renderFrame(): void {
   const { ctx } = screen;
+  const pose = party.getPose();
   drawChrome(ctx);
-  drawMinimap(ctx, level, party.getPose());
-  drawPartyPanel(ctx, party.getPose().facing);
+  if (debug.minimap) drawMinimap(ctx, level, pose);
+  else drawViewport(ctx, level, pose, { showSlots: debug.slots });
+  drawPartyPanel(ctx, pose.facing);
   logPanel.draw(ctx);
   screen.present();
 }
