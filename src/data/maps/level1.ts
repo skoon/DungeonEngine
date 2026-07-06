@@ -19,6 +19,7 @@
 
 import { Dir } from '../../core/grid';
 import type { MapSource } from '../../core/mapParser';
+import { item } from '../items';
 
 export const level1: MapSource = {
   name: 'The Pillared Hall',
@@ -70,6 +71,12 @@ export const level1: MapSource = {
     },
     // Engraved hint on the north wall.
     { x: 6, y: 1, dir: Dir.N, kind: 'wall', text: '"WEIGHT OPENS THE WAY"' },
+    // A wall niche holding a gem — loot it by facing it and pressing use.
+    { x: 9, y: 1, dir: Dir.N, alcove: [item('gem')] },
+  ],
+  floor: [
+    // Loose rations on the floor of the entry hall.
+    { x: 2, y: 2, items: [item('rations')] },
   ],
   triggers: [
     {

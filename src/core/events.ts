@@ -20,7 +20,12 @@ export type GameEvent =
   | { type: 'party/teleported'; x: number; y: number; facing: Dir }
   | { type: 'party/fell' }
   | { type: 'door/toggled'; x: number; y: number; dir: Dir; open: boolean }
-  | { type: 'interact/used'; kind: 'button' | 'lever' };
+  | { type: 'door/locked'; keyId: string }
+  | { type: 'interact/used'; kind: 'button' | 'lever' }
+  | { type: 'char/damaged'; member: number; amount: number; hpCur: number }
+  | { type: 'char/down'; member: number }
+  | { type: 'item/taken'; name: string }
+  | { type: 'item/dropped'; name: string };
 
 export type EventType = GameEvent['type'];
 export type EventOf<T extends EventType> = Extract<GameEvent, { type: T }>;

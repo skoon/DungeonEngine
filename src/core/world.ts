@@ -10,11 +10,12 @@
  */
 
 import { type Dir, type Vec2 } from './grid';
-import { type Level, cellTriggerAt, edgeAt } from './dungeon';
+import { type EdgeWall, type Level, cellTriggerAt, edgeAt } from './dungeon';
 import { Party, type StepDir, stepDirection } from './party';
 import type { EventBus, LogChannel } from './events';
 import type { Action, EdgeAddr } from './triggers';
 import type { Rng } from './rng';
+import type { Roster } from './roster';
 
 const DOOR_RATE = 0.006; // progress units per ms (~170ms open/close)
 const MAX_TELEPORT_HOPS = 8;
@@ -26,6 +27,7 @@ export class World {
     private readonly level: Level,
     private readonly bus: EventBus,
     private readonly rng: Rng,
+    private readonly roster?: Roster,
   ) {
     this.party = new Party(level, bus);
   }
@@ -62,15 +64,27 @@ export class World {
     }
   }
 
-  /** Operate whatever wall the party is facing (button/lever). */
+  /** Operate whatever the party is facing: button/lever, keyhole, or alcove. */
   use(): void {
     const { pos, facing } = this.party.getPose();
     const edge = edgeAt(this.level, pos.x, pos.y, facing);
-    const it = edge?.interact;
-    if (!it) {
-      this.msg('system', 'There is nothing to use here.');
+
+    if (edge?.interact) {
+      this.useInteractable(edge.interact);
       return;
     }
+    if (edge?.kind === 'door' && edge.door && !edge.door.open && edge.door.keyId) {
+      this.useKeyhole(edge.door.keyId, { x: pos.x, y: pos.y, dir: facing });
+      return;
+    }
+    if (edge?.alcove && edge.alcove.length > 0) {
+      this.lootAlcove(edge);
+      return;
+    }
+    this.msg('system', 'There is nothing to use here.');
+  }
+
+  private useInteractable(it: NonNullable<EdgeWall['interact']>): void {
     if (it.oneShot && it.used) {
       this.msg('system', "It won't budge.");
       return;
@@ -80,6 +94,40 @@ export class World {
     this.bus.emit({ type: 'interact/used', kind: it.kind });
     this.msg('system', it.kind === 'lever' ? 'You pull the lever.' : 'You press the button.');
     this.run(it.actions);
+  }
+
+  private useKeyhole(keyId: string, addr: EdgeAddr): void {
+    if (this.partyHasKey(keyId)) {
+      this.setDoor(addr, true);
+      this.msg('system', `You unlock the door with the ${keyId} key.`);
+    } else {
+      this.bus.emit({ type: 'door/locked', keyId });
+      this.msg('system', 'The door is locked. You need a key.');
+    }
+  }
+
+  private lootAlcove(edge: EdgeWall): void {
+    if (!this.roster) return;
+    const remaining: NonNullable<EdgeWall['alcove']> = [];
+    for (const it of edge.alcove ?? []) {
+      if (this.roster.stow(it)) {
+        this.bus.emit({ type: 'item/taken', name: it.tpl.name });
+        this.msg('loot', `You take the ${it.tpl.name}.`);
+      } else {
+        remaining.push(it);
+      }
+    }
+    edge.alcove = remaining;
+    if (remaining.length > 0) this.msg('system', 'Your packs are full.');
+  }
+
+  private partyHasKey(keyId: string): boolean {
+    if (!this.roster) return false;
+    for (const c of this.roster.members) {
+      const held = [...c.hands, ...c.backpack, ...Object.values(c.equipment)];
+      if (held.some((it) => it?.tpl.keyId === keyId)) return true;
+    }
+    return false;
   }
 
   private move(step: StepDir): boolean {
@@ -127,6 +175,11 @@ export class World {
     if (t.kind === 'pit') {
       this.bus.emit({ type: 'party/fell' });
       this.msg('damage', 'The floor gives way — you plunge into a pit!');
+      if (this.roster) {
+        for (let i = 0; i < this.roster.members.length; i++) {
+          this.roster.damage(i, this.rng.dice(1, 6), this.bus);
+        }
+      }
     }
     if (t.onEnter) {
       this.run(t.onEnter);

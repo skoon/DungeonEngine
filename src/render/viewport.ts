@@ -9,8 +9,10 @@
  */
 
 import { type Dir, type Vec2, turnLeft, turnRight } from '../core/grid';
-import { type Level, cellTriggerAt, edgeAt, type EdgeWall } from '../core/dungeon';
+import { type Level, cellAt, cellTriggerAt, edgeAt, type EdgeWall } from '../core/dungeon';
+import type { Item } from '../core/item';
 import { SWEETIE16 } from './palette';
+import { drawItemIcon } from './itemIcon';
 import { text } from './text';
 import { buildScene, maxLat, ROWS, type WallSlot } from './scene';
 import {
@@ -79,6 +81,9 @@ function band(ctx: CanvasRenderingContext2D, y0: number, y1: number, colors: str
 function drawSlot(ctx: CanvasRenderingContext2D, level: Level, facing: Dir, slot: WallSlot): void {
   const t = cellTriggerAt(level, slot.cell.x, slot.cell.y);
   if (t && t.visible !== false) drawFloorMarker(ctx, t.kind, slot.row, slot.lat);
+
+  const items = cellAt(level, slot.cell.x, slot.cell.y)?.items;
+  if (items && items.length > 0 && slot.row <= 2) drawFloorItems(ctx, slot.row, slot.lat, items);
 
   const sideFill = SIDE_FILL[slot.row] ?? SWEETIE16.black;
   const frontFill = FRONT_FILL[slot.row] ?? SWEETIE16.navy;
@@ -210,6 +215,14 @@ function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | und
       ctx.fillStyle = SWEETIE16.yellow;
       ctx.fillRect(Math.round(at.x) - 2, Math.round(at.y) - 6, 5, 3);
     }
+  } else if (edge?.alcove && edge.alcove.length > 0) {
+    // A recessed niche with its contents peeking out.
+    ctx.fillStyle = SWEETIE16.black;
+    ctx.fillRect(Math.round(at.x) - 7, Math.round(at.y) - 7, 14, 14);
+    ctx.strokeStyle = SWEETIE16.ink;
+    ctx.strokeRect(Math.round(at.x) - 7.5, Math.round(at.y) - 7.5, 15, 15);
+    const first = edge.alcove[0];
+    if (first) drawItemIcon(ctx, first, Math.round(at.x) - 6, Math.round(at.y) - 6, 12);
   } else if (edge?.text) {
     ctx.fillStyle = SWEETIE16.gray;
     for (let i = 0; i < 3; i++) ctx.fillRect(Math.round(at.x) - 5, Math.round(at.y) - 3 + i * 3, 10, 1);
@@ -248,6 +261,17 @@ function drawFloorMarker(ctx: CanvasRenderingContext2D, kind: string, row: numbe
       break;
     default:
       break;
+  }
+}
+
+function drawFloorItems(ctx: CanvasRenderingContext2D, row: number, lat: number, items: Item[]): void {
+  const c = centroid(floorQuad(row, lat));
+  const size = Math.max(6, 14 - row * 3);
+  const shown = Math.min(items.length, 4);
+  const startX = c.x - ((shown - 1) * (size + 1)) / 2;
+  for (let i = 0; i < shown; i++) {
+    const it = items[i]!;
+    drawItemIcon(ctx, it, Math.round(startX + i * (size + 1) - size / 2), Math.round(c.y - size / 2), size);
   }
 }
 

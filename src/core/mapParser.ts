@@ -21,6 +21,7 @@
 import { type Dir, Dir as D } from './grid';
 import type { CellTrigger, EdgeWall, Interactable, Level } from './dungeon';
 import { edgeKey } from './dungeon';
+import type { Item } from './item';
 
 export interface EdgeSpec {
   x: number;
@@ -33,8 +34,12 @@ export interface EdgeSpec {
   /** Doors start closed unless open:true. */
   open?: boolean;
   secret?: boolean;
+  /** Keyhole door: requires a key with this id to open by hand. */
+  keyId?: string;
   interact?: Interactable;
   text?: string;
+  /** Items stashed in this wall niche. */
+  alcove?: Item[];
 }
 
 export interface TriggerSpec extends CellTrigger {
@@ -42,13 +47,21 @@ export interface TriggerSpec extends CellTrigger {
   y: number;
 }
 
+export interface FloorSpec {
+  x: number;
+  y: number;
+  items: Item[];
+}
+
 export interface MapSource {
   name: string;
   ascii: string;
-  /** Thin walls, doors, illusions, and wall-mounted interactables. */
+  /** Thin walls, doors, illusions, alcoves, and wall-mounted interactables. */
   edges?: EdgeSpec[];
   /** Floor triggers keyed to cells. */
   triggers?: TriggerSpec[];
+  /** Loose items lying on cell floors. */
+  floor?: FloorSpec[];
 }
 
 const START_FACING: Record<string, Dir> = {
@@ -112,36 +125,40 @@ export function parseMap(source: MapSource): Level {
     cells[spec.y * width + spec.x]!.trigger = trigger;
   }
 
+  for (const spec of source.floor ?? []) {
+    if (spec.x < 0 || spec.y < 0 || spec.x >= width || spec.y >= height) {
+      throw new Error(`floor items at ${spec.x},${spec.y} are out of bounds`);
+    }
+    cells[spec.y * width + spec.x]!.items = [...spec.items];
+  }
+
   return { name: source.name, width, height, cells, edges, start };
 }
 
 function buildEdge(spec: EdgeSpec): EdgeWall {
   const kind = spec.kind ?? 'wall';
+  const extras = {
+    ...(spec.interact ? { interact: spec.interact } : {}),
+    ...(spec.text ? { text: spec.text } : {}),
+    ...(spec.alcove ? { alcove: [...spec.alcove] } : {}),
+  };
   if (kind === 'door') {
     const open = spec.open ?? false;
-    const door = { open, progress: open ? 1 : 0, ...(spec.secret ? { secret: true } : {}) };
-    return {
-      kind,
-      blocksMovement: !open,
-      rendersSolid: true,
-      door,
-      ...(spec.interact ? { interact: spec.interact } : {}),
-      ...(spec.text ? { text: spec.text } : {}),
+    const door = {
+      open,
+      progress: open ? 1 : 0,
+      ...(spec.secret ? { secret: true } : {}),
+      ...(spec.keyId ? { keyId: spec.keyId } : {}),
     };
+    return { kind, blocksMovement: !open, rendersSolid: true, door, ...extras };
   }
   if (kind === 'illusion') {
     return {
       kind,
       blocksMovement: false, // walk right through
       rendersSolid: true, // but it looks like a wall
-      ...(spec.text ? { text: spec.text } : {}),
+      ...extras,
     };
   }
-  return {
-    kind: 'wall',
-    blocksMovement: spec.blocksMovement ?? true,
-    rendersSolid: true,
-    ...(spec.interact ? { interact: spec.interact } : {}),
-    ...(spec.text ? { text: spec.text } : {}),
-  };
+  return { kind: 'wall', blocksMovement: spec.blocksMovement ?? true, rendersSolid: true, ...extras };
 }

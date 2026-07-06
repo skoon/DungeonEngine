@@ -16,12 +16,15 @@
 
 import { type Dir, type Vec2, translate } from './grid';
 import type { Action } from './triggers';
+import type { Item } from './item';
 
 export interface Cell {
   /** Solid rock — unexcavated, never walkable. */
   solid: boolean;
   /** Optional floor trigger (plate, teleporter, pit, spinner, stairs). */
   trigger?: CellTrigger;
+  /** Loose items lying on the floor. */
+  items?: Item[];
 }
 
 /** A wall-mounted button or lever that runs actions when used. */
@@ -42,6 +45,8 @@ export interface DoorState {
   progress: number;
   /** Renders as an ordinary wall until opened (a secret door). */
   secret?: boolean;
+  /** Requires a key with this id to open by hand (a keyhole door). */
+  keyId?: string;
 }
 
 export interface EdgeWall {
@@ -55,6 +60,8 @@ export interface EdgeWall {
   interact?: Interactable;
   /** Engraved wall text, surfaced to the log when the party faces it. */
   text?: string;
+  /** A wall niche holding items you can take (plan §5). */
+  alcove?: Item[];
 }
 
 /**
