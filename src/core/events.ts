@@ -28,7 +28,9 @@ export type GameEvent =
   | { type: 'item/dropped'; name: string }
   | { type: 'attack/resolved'; by: 'party' | 'monster'; hit: boolean; damage: number }
   | { type: 'monster/died'; name: string; xp: number }
-  | { type: 'party/wiped' };
+  | { type: 'party/wiped' }
+  | { type: 'spell/cast'; member: number; spellId: string }
+  | { type: 'char/healed'; member: number; amount: number; hpCur: number };
 
 export type EventType = GameEvent['type'];
 export type EventOf<T extends EventType> = Extract<GameEvent, { type: T }>;

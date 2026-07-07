@@ -5,9 +5,18 @@
  */
 
 import { type Item, itemWeight } from './item';
+import type { SpellDef } from './spell';
 
 export type Clazz = 'fighter' | 'cleric' | 'mage' | 'thief';
 export type Condition = 'poisoned' | 'paralyzed' | 'unconscious' | 'dead';
+
+/** A temporary combat buff (e.g. Shield). Non-optional and null-defaulted,
+ * matching the Item|null convention, so exactOptionalPropertyTypes never
+ * forces an explicit `undefined` assignment when it expires. */
+export interface Buff {
+  acBonus: number;
+  msLeft: number;
+}
 
 export interface Stats {
   str: number;
@@ -43,15 +52,18 @@ export interface Character {
   cooldowns: [number, number];
   equipment: Equipment;
   backpack: (Item | null)[];
+  spells: SpellDef[];
+  spellCooldown: number;
+  buff: Buff | null;
 }
 
 export function statMod(v: number): number {
   return Math.floor((v - 10) / 2);
 }
 
-/** Ascending armour class: 10 + dex + armour/shield bonuses. */
+/** Ascending armour class: 10 + dex + armour/shield bonuses + active buffs. */
 export function armorClass(c: Character): number {
-  let ac = 10 + statMod(c.stats.dex);
+  let ac = 10 + statMod(c.stats.dex) + (c.buff?.acBonus ?? 0);
   for (const it of Object.values(c.equipment)) if (it?.tpl.ac) ac += it.tpl.ac;
   for (const h of c.hands) if (h?.tpl.slot === 'shield' && h.tpl.ac) ac += h.tpl.ac;
   return ac;
@@ -93,6 +105,7 @@ export interface CharacterConfig {
   hands?: [Item | null, Item | null];
   equipment?: Equipment;
   backpack?: (Item | null)[];
+  spells?: SpellDef[];
 }
 
 export function makeCharacter(cfg: CharacterConfig): Character {
@@ -114,5 +127,8 @@ export function makeCharacter(cfg: CharacterConfig): Character {
     cooldowns: [0, 0],
     equipment: cfg.equipment ?? {},
     backpack,
+    spells: cfg.spells ?? [],
+    spellCooldown: 0,
+    buff: null,
   };
 }

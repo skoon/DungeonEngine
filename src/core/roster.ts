@@ -13,19 +13,23 @@ const FLASH_MS = 220;
 export class Roster {
   /** Per-member hurt-flash timer (ms), for the party-panel damage flash. */
   readonly hurt: number[];
+  /** Per-member heal-flash timer (ms), for the party-panel green flash. */
+  readonly healFlash: number[];
 
   constructor(public readonly members: Character[]) {
     this.hurt = members.map(() => 0);
+    this.healFlash = members.map(() => 0);
   }
 
   member(i: number): Character | undefined {
     return this.members[i];
   }
 
-  /** Advance hurt-flash timers. */
+  /** Advance hurt/heal-flash timers. */
   tickFlash(dtMs: number): void {
     for (let i = 0; i < this.hurt.length; i++) {
       this.hurt[i] = Math.max(0, (this.hurt[i] ?? 0) - dtMs);
+      this.healFlash[i] = Math.max(0, (this.healFlash[i] ?? 0) - dtMs);
     }
   }
 
@@ -76,5 +80,23 @@ export class Roster {
       bus.emit({ type: 'char/down', member: index });
       bus.emit({ type: 'log/message', channel: 'damage', text: `${c.name} collapses!` });
     }
+  }
+
+  /** Restore HP, capped at max. Returns the actual amount healed (0 if
+   * already at full). Revives an unconscious member who rises above 0 HP. */
+  heal(index: number, amount: number, bus: EventBus): number {
+    const c = this.members[index];
+    if (!c) return 0;
+    const before = c.hp.cur;
+    c.hp.cur = Math.min(c.hp.max, c.hp.cur + amount);
+    const actual = c.hp.cur - before;
+    if (actual <= 0) return 0;
+    this.healFlash[index] = FLASH_MS;
+    bus.emit({ type: 'char/healed', member: index, amount: actual, hpCur: c.hp.cur });
+    if (c.conditions.has('unconscious') && c.hp.cur > 0) {
+      c.conditions.delete('unconscious');
+      bus.emit({ type: 'log/message', channel: 'system', text: `${c.name} stirs awake!` });
+    }
+    return actual;
   }
 }

@@ -12,6 +12,7 @@ import { type Dir, type Vec2, turnLeft, turnRight } from '../core/grid';
 import { type Level, cellAt, cellTriggerAt, edgeAt, type EdgeWall } from '../core/dungeon';
 import type { Item } from '../core/item';
 import type { Monster } from '../core/monster';
+import type { Projectile } from '../core/projectile';
 import { SWEETIE16 } from './palette';
 import { drawItemIcon } from './itemIcon';
 import { text } from './text';
@@ -41,6 +42,10 @@ interface Pose {
 }
 
 export interface ViewportOpts {
+  monsters?: Monster[];
+  projectiles?: Projectile[];
+  /** Whether a Light spell is active — illusions shimmer to hint at them. */
+  lit?: boolean;
   showSlots?: boolean;
 }
 
@@ -48,9 +53,11 @@ export function drawViewport(
   ctx: CanvasRenderingContext2D,
   level: Level,
   pose: Pose,
-  monsters: Monster[] = [],
   opts: ViewportOpts = {},
 ): void {
+  const monsters = opts.monsters ?? [];
+  const projectiles = opts.projectiles ?? [];
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(CONTENT.x, CONTENT.y, CONTENT.w, CONTENT.h);
@@ -58,14 +65,24 @@ export function drawViewport(
 
   drawCeilingFloor(ctx);
 
-  const byCell = new Map<string, Monster>();
-  for (const m of monsters) if (m.state !== 'dead') byCell.set(`${m.pos.x},${m.pos.y}`, m);
+  const monsterByCell = new Map<string, Monster>();
+  for (const m of monsters) if (m.state !== 'dead') monsterByCell.set(`${m.pos.x},${m.pos.y}`, m);
+  const projByCell = new Map<string, Projectile[]>();
+  for (const p of projectiles) {
+    const key = `${p.pos.x},${p.pos.y}`;
+    const list = projByCell.get(key);
+    if (list) list.push(p);
+    else projByCell.set(key, [p]);
+  }
 
   const slots = buildScene(level, pose);
   for (const slot of slots) {
-    drawSlot(ctx, level, pose.facing, slot);
-    const m = byCell.get(`${slot.cell.x},${slot.cell.y}`);
+    drawSlot(ctx, level, pose.facing, slot, opts.lit ?? false);
+    const key = `${slot.cell.x},${slot.cell.y}`;
+    const m = monsterByCell.get(key);
     if (m && slot.row <= 3) drawMonster(ctx, slot.row, slot.lat, m);
+    const ps = projByCell.get(key);
+    if (ps && slot.row <= 3) for (const p of ps) drawProjectile(ctx, slot.row, slot.lat, p);
   }
 
   if (opts.showSlots) drawSlotOverlay(ctx, slots);
@@ -87,7 +104,13 @@ function band(ctx: CanvasRenderingContext2D, y0: number, y1: number, colors: str
   });
 }
 
-function drawSlot(ctx: CanvasRenderingContext2D, level: Level, facing: Dir, slot: WallSlot): void {
+function drawSlot(
+  ctx: CanvasRenderingContext2D,
+  level: Level,
+  facing: Dir,
+  slot: WallSlot,
+  lit: boolean,
+): void {
   const t = cellTriggerAt(level, slot.cell.x, slot.cell.y);
   if (t && t.visible !== false) drawFloorMarker(ctx, t.kind, slot.row, slot.lat);
 
@@ -101,13 +124,13 @@ function drawSlot(ctx: CanvasRenderingContext2D, level: Level, facing: Dir, slot
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnLeft(facing));
     const q = sideQuad(slot.row, slot.lat, 'left');
     drawSideFace(ctx, q, e?.kind === 'door' ? DOOR_FILL : sideFill);
-    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e);
+    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
   }
   if (slot.right) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnRight(facing));
     const q = sideQuad(slot.row, slot.lat, 'right');
     drawSideFace(ctx, q, e?.kind === 'door' ? DOOR_FILL : sideFill);
-    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e);
+    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
   }
   if (slot.front) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, facing);
@@ -116,7 +139,7 @@ function drawSlot(ctx: CanvasRenderingContext2D, level: Level, facing: Dir, slot
       drawFrontDoor(ctx, r, e, slot.row);
     } else {
       drawFrontFace(ctx, r, frontFill);
-      decorate(ctx, { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }, e);
+      decorate(ctx, { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }, e, lit);
     }
   }
 }
@@ -180,9 +203,12 @@ function drawSideFace(ctx: CanvasRenderingContext2D, q: SideQuad, fill: string):
 
 function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWall, row: number): void {
   const progress = edge.door?.progress ?? 0;
-  // A closed secret door is indistinguishable from the surrounding wall.
+  // A closed secret door is indistinguishable from the surrounding wall —
+  // unless Detect Secret has revealed it, which draws a faint dashed hint
+  // without giving away exactly how to open it.
   if (edge.door?.secret && progress <= 0.001) {
     drawFrontFace(ctx, r, FRONT_FILL[row] ?? SWEETIE16.navy);
+    if (edge.detected) drawDetectedHint(ctx, r);
     return;
   }
   const x0 = Math.round(r.x0);
@@ -211,7 +237,18 @@ function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWa
 
 // -- Decals: buttons, levers, engraved text --------------------------------
 
-function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | undefined): void {
+function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | undefined, lit: boolean): void {
+  if (edge?.kind === 'illusion') {
+    if (edge.detected) drawDetectedHint(ctx, { x0: at.x - 8, x1: at.x + 8, y0: at.y - 8, y1: at.y + 8 });
+    if (lit) {
+      // A faint shimmer — light gives illusions away.
+      ctx.fillStyle = SWEETIE16.cyan;
+      const t = (Date.now() / 120) % 4;
+      ctx.fillRect(Math.round(at.x - 6 + t * 3), Math.round(at.y - 4), 1, 1);
+      ctx.fillRect(Math.round(at.x + 4 - t * 2), Math.round(at.y + 3), 1, 1);
+      ctx.fillRect(Math.round(at.x - 2 + t), Math.round(at.y - 6), 1, 1);
+    }
+  }
   if (edge?.interact) {
     if (edge.interact.kind === 'button') {
       ctx.fillStyle = SWEETIE16.yellow;
@@ -236,6 +273,16 @@ function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | und
     ctx.fillStyle = SWEETIE16.gray;
     for (let i = 0; i < 3; i++) ctx.fillRect(Math.round(at.x) - 5, Math.round(at.y) - 3 + i * 3, 10, 1);
   }
+}
+
+/** A dashed cyan outline hinting that Detect Secret found something here. */
+function drawDetectedHint(ctx: CanvasRenderingContext2D, r: FrontRect): void {
+  ctx.save();
+  ctx.strokeStyle = SWEETIE16.cyan;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 2]);
+  ctx.strokeRect(r.x0 + 2.5, r.y0 + 2.5, r.x1 - r.x0 - 5, r.y1 - r.y0 - 5);
+  ctx.restore();
 }
 
 // -- Floor markers ---------------------------------------------------------
@@ -305,6 +352,21 @@ function drawMonster(ctx: CanvasRenderingContext2D, row: number, lat: number, m:
   ctx.fillRect(Math.round(cx - bw / 2), Math.round(top - 5), Math.round(bw), 2);
   ctx.fillStyle = SWEETIE16.red;
   ctx.fillRect(Math.round(cx - bw / 2), Math.round(top - 5), Math.round(bw * ratio), 2);
+}
+
+const PROJECTILE_SIZE = [11, 8, 6, 4];
+
+function drawProjectile(ctx: CanvasRenderingContext2D, row: number, lat: number, p: Projectile): void {
+  const q = floorQuad(row, lat);
+  const c = centroid(q);
+  const size = PROJECTILE_SIZE[row] ?? 4;
+  // Flies at roughly chest height: partway from floor back up to the horizon.
+  const y = c.y - (c.y - HORIZON) * 0.55;
+  ctx.fillStyle = p.color;
+  ctx.strokeStyle = SWEETIE16.black;
+  ctx.fillRect(Math.round(c.x - size / 2), Math.round(y - size / 2), size, size);
+  ctx.strokeRect(Math.round(c.x - size / 2) + 0.5, Math.round(y - size / 2) + 0.5, size - 1, size - 1);
+  text(ctx, p.glyph.slice(0, 1), Math.round(c.x - 2), Math.round(y - 4), SWEETIE16.black);
 }
 
 function drawFloorItems(ctx: CanvasRenderingContext2D, row: number, lat: number, items: Item[]): void {

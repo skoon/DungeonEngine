@@ -9,14 +9,16 @@
  * are content, not code.
  */
 
-import { type Dir, type Vec2, translate } from './grid';
-import { type EdgeWall, type Level, cellAt, cellTriggerAt, edgeAt } from './dungeon';
+import { type Dir, type Vec2, delta, translate, turnRight } from './grid';
+import { type EdgeWall, type Level, canEnter, cellAt, cellTriggerAt, edgeAt } from './dungeon';
 import { Party, type StepDir, stepDirection } from './party';
 import { type Monster, decideState, spawnMonster } from './monster';
+import { type Projectile, spawnProjectile } from './projectile';
 import { resolveAttack, rollDamage } from './combat';
 import { type Blocked, manhattan, stepAway, stepToward } from './path';
-import { armorClass, attackBonus, isDisabled, statMod, weaponDamage } from './character';
-import { isWeapon } from './item';
+import { type Character, armorClass, attackBonus, isDisabled, statMod, weaponDamage } from './character';
+import { isWeapon, type Item } from './item';
+import type { SpellDef } from './spell';
 import type { EventBus, LogChannel } from './events';
 import type { Action, EdgeAddr } from './triggers';
 import type { Rng } from './rng';
@@ -29,6 +31,8 @@ const MONSTER_FLASH_MS = 180;
 export class World {
   readonly party: Party;
   readonly monsters: Monster[];
+  readonly projectiles: Projectile[] = [];
+  private litMsLeft = 0;
 
   constructor(
     private readonly level: Level,
@@ -42,6 +46,11 @@ export class World {
 
   monsterAt(x: number, y: number): Monster | undefined {
     return this.monsters.find((m) => m.state !== 'dead' && m.pos.x === x && m.pos.y === y);
+  }
+
+  /** Whether a Light spell is currently active (plan §6.3; render hook). */
+  isLit(): boolean {
+    return this.litMsLeft > 0;
   }
 
   stepForward(): boolean {
@@ -78,13 +87,34 @@ export class World {
       for (const c of this.roster.members) {
         c.cooldowns[0] = Math.max(0, c.cooldowns[0] - dtMs);
         c.cooldowns[1] = Math.max(0, c.cooldowns[1] - dtMs);
+        c.spellCooldown = Math.max(0, c.spellCooldown - dtMs);
+        if (c.buff) {
+          c.buff.msLeft -= dtMs;
+          if (c.buff.msLeft <= 0) c.buff = null;
+        }
       }
       this.roster.tickFlash(dtMs);
     }
+    this.litMsLeft = Math.max(0, this.litMsLeft - dtMs);
     this.updateMonsters(dtMs);
+    this.tickProjectiles(dtMs);
+    this.pruneDead();
   }
 
-  /** Attack the monster in the cell directly ahead with member `index`. */
+  /** Remove monsters killed this tick, whichever system killed them
+   * (melee, projectile, or a cone spell) — run once, after all of them. */
+  private pruneDead(): void {
+    for (let i = this.monsters.length - 1; i >= 0; i--) {
+      if (this.monsters[i]!.state === 'dead') this.monsters.splice(i, 1);
+    }
+  }
+
+  /**
+   * Attack the monster in the cell directly ahead with member `index`. A
+   * thrown weapon (dagger, etc.) with no adjacent target instead launches
+   * as a projectile down the corridor — the back rank may always do this,
+   * since throwing doesn't need reach the way melee does.
+   */
   attack(index: number): void {
     if (!this.roster) return;
     const c = this.roster.member(index);
@@ -97,32 +127,62 @@ export class World {
       return;
     }
     const weapon = c.hands[hand];
-    if (index >= 2 && !(weapon && weapon.tpl.reach)) {
-      this.msg('system', `${c.name} can't reach from the back rank.`);
-      return;
-    }
-
     const { pos, facing } = this.party.getPose();
     const ahead = translate(pos, facing);
     const m = this.monsterAt(ahead.x, ahead.y);
-    c.cooldowns[hand] = weapon?.tpl.cooldownMs ?? 500;
 
-    if (!m) {
-      this.msg('combat', `${c.name} swings at empty air.`);
+    if (m) {
+      if (index >= 2 && !(weapon && weapon.tpl.reach)) {
+        this.msg('system', `${c.name} can't reach from the back rank.`);
+        return;
+      }
+      c.cooldowns[hand] = weapon?.tpl.cooldownMs ?? 500;
+      const roll = resolveAttack(this.rng, attackBonus(c), m.species.ac);
+      if (roll.hit) {
+        const dmg = rollDamage(this.rng, weaponDamage(c, hand), statMod(c.stats.str));
+        this.bus.emit({ type: 'attack/resolved', by: 'party', hit: true, damage: dmg });
+        this.msg('combat', `${c.name} hits the ${m.species.name} for ${dmg}.`);
+        this.hitMonster(m, dmg);
+      } else {
+        this.bus.emit({ type: 'attack/resolved', by: 'party', hit: false, damage: 0 });
+        this.msg('combat', `${c.name} misses the ${m.species.name}.`);
+      }
       return;
     }
-    const roll = resolveAttack(this.rng, attackBonus(c), m.species.ac);
-    if (roll.hit) {
-      const dmg = rollDamage(this.rng, weaponDamage(c, hand), statMod(c.stats.str));
-      this.bus.emit({ type: 'attack/resolved', by: 'party', hit: true, damage: dmg });
-      this.msg('combat', `${c.name} hits the ${m.species.name} for ${dmg}.`);
-      m.flash = MONSTER_FLASH_MS;
-      m.hp.cur -= dmg;
-      if (m.hp.cur <= 0) this.killMonster(m);
+
+    c.cooldowns[hand] = weapon?.tpl.cooldownMs ?? 500;
+    if (weapon?.tpl.thrown) {
+      this.throwWeapon(c, hand, weapon, facing);
     } else {
-      this.bus.emit({ type: 'attack/resolved', by: 'party', hit: false, damage: 0 });
-      this.msg('combat', `${c.name} misses the ${m.species.name}.`);
+      this.msg('combat', `${c.name} swings at empty air.`);
     }
+  }
+
+  private throwWeapon(c: Character, hand: 0 | 1, weapon: Item, facing: Dir): void {
+    c.hands[hand] = null; // it's in the air now — rearm from the backpack or floor
+    const start = translate(this.party.getPose().pos, facing);
+    this.projectiles.push(
+      spawnProjectile({
+        pos: start,
+        dir: facing,
+        from: 'party',
+        attackBonus: attackBonus(c),
+        damage: weapon.tpl.damage ?? [1, 2],
+        damageBonus: statMod(c.stats.str),
+        item: weapon,
+        glyph: weapon.tpl.glyph,
+        color: weapon.tpl.color,
+        label: weapon.tpl.name,
+      }),
+    );
+    this.msg('combat', `${c.name} hurls the ${weapon.tpl.name}.`);
+  }
+
+  /** Apply damage to a monster (shared by melee, projectiles, and spells). */
+  private hitMonster(m: Monster, dmg: number): void {
+    m.flash = MONSTER_FLASH_MS;
+    m.hp.cur -= dmg;
+    if (m.hp.cur <= 0) this.killMonster(m);
   }
 
   private killMonster(m: Monster): void {
@@ -172,9 +232,6 @@ export class World {
         m.moveTimer = m.species.moveMs;
       }
     }
-    for (let i = this.monsters.length - 1; i >= 0; i--) {
-      if (this.monsters[i]!.state === 'dead') this.monsters.splice(i, 1);
-    }
   }
 
   private monsterAttack(m: Monster): void {
@@ -203,6 +260,222 @@ export class World {
       this.bus.emit({ type: 'attack/resolved', by: 'monster', hit: false, damage: 0 });
       this.msg('combat', `The ${m.species.name} misses ${c.name}.`);
     }
+  }
+
+  private tickProjectiles(dtMs: number): void {
+    const partyPos = this.party.getPose().pos;
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i]!;
+      p.timer -= dtMs;
+      let landed = false;
+      let guard = 0;
+      while (p.timer <= 0 && !landed && guard++ < 8) {
+        p.timer += p.hopMs;
+        if (!canEnter(this.level, p.pos, p.dir)) {
+          this.landProjectile(p);
+          landed = true;
+          break;
+        }
+        p.pos = translate(p.pos, p.dir);
+        p.range -= 1;
+
+        if (p.from === 'party') {
+          const m = this.monsterAt(p.pos.x, p.pos.y);
+          if (m) {
+            const roll = p.guaranteed
+              ? { hit: true }
+              : resolveAttack(this.rng, p.attackBonus, m.species.ac);
+            if (roll.hit) {
+              const dmg = rollDamage(this.rng, p.damage, p.damageBonus);
+              this.bus.emit({ type: 'attack/resolved', by: 'party', hit: true, damage: dmg });
+              this.msg('combat', `The ${p.label} hits the ${m.species.name} for ${dmg}.`);
+              this.hitMonster(m, dmg);
+            } else {
+              this.bus.emit({ type: 'attack/resolved', by: 'party', hit: false, damage: 0 });
+              this.msg('combat', `The ${p.label} sails past the ${m.species.name}.`);
+            }
+            this.landProjectile(p);
+            landed = true;
+            break;
+          }
+        } else if (p.pos.x === partyPos.x && p.pos.y === partyPos.y) {
+          this.resolveProjectileVsParty(p);
+          landed = true;
+          break;
+        }
+
+        if (p.range <= 0) {
+          this.landProjectile(p);
+          landed = true;
+          break;
+        }
+      }
+      if (landed) this.projectiles.splice(i, 1);
+    }
+  }
+
+  /** A monster-fired projectile reaching the party (hook for future ranged
+   * monsters; no current species uses this path). */
+  private resolveProjectileVsParty(p: Projectile): void {
+    if (!this.roster) return;
+    const idx = this.rng.int(0, this.roster.members.length - 1);
+    const target = this.roster.member(idx);
+    if (!target) return;
+    const roll = resolveAttack(this.rng, p.attackBonus, armorClass(target));
+    if (roll.hit) {
+      const dmg = rollDamage(this.rng, p.damage, p.damageBonus);
+      this.msg('damage', `The ${p.label} strikes ${target.name} for ${dmg}.`);
+      this.roster.damage(idx, dmg, this.bus);
+    } else {
+      this.msg('combat', `The ${p.label} whizzes past ${target.name}.`);
+    }
+  }
+
+  private landProjectile(p: Projectile): void {
+    if (p.item) {
+      const cell = cellAt(this.level, p.pos.x, p.pos.y);
+      if (cell) cell.items = [...(cell.items ?? []), p.item];
+      this.msg('ambient', `The ${p.item.tpl.name} clatters to the floor.`);
+    }
+  }
+
+  /** Cast a spell `spellId` known to member `index` (plan §6.3). */
+  cast(index: number, spellId: string): void {
+    if (!this.roster) return;
+    const c = this.roster.member(index);
+    if (!c || isDisabled(c)) return;
+    const def = c.spells.find((s) => s.id === spellId);
+    if (!def) {
+      this.msg('system', `${c.name} does not know that spell.`);
+      return;
+    }
+    if (c.spellCooldown > 0) {
+      this.msg('system', `${c.name} is not ready to cast.`);
+      return;
+    }
+    if (c.mp.cur < def.mpCost) {
+      this.msg('system', `${c.name} lacks the mana.`);
+      return;
+    }
+
+    let ok = true;
+    switch (def.kind) {
+      case 'projectile':
+        this.castBolt(c, def);
+        break;
+      case 'cone':
+        this.castCone(c, def);
+        break;
+      case 'buff':
+        c.buff = { acBonus: def.acBonus ?? 0, msLeft: def.buffMs ?? 10000 };
+        this.msg('system', `${c.name} is warded.`);
+        break;
+      case 'heal':
+        ok = this.castHeal(def);
+        break;
+      case 'light':
+        this.litMsLeft = def.lightMs ?? 60000;
+        this.msg('system', 'A soft light suffuses the passage.');
+        break;
+      case 'detect':
+        this.castDetect(def);
+        break;
+    }
+    if (!ok) return;
+
+    c.mp.cur -= def.mpCost;
+    c.spellCooldown = def.castMs;
+    this.bus.emit({ type: 'spell/cast', member: index, spellId: def.id });
+    this.msg('combat', `${c.name} casts ${def.name}.`);
+  }
+
+  private castBolt(c: Character, def: SpellDef): void {
+    const { pos, facing } = this.party.getPose();
+    this.projectiles.push(
+      spawnProjectile({
+        pos: translate(pos, facing),
+        dir: facing,
+        from: 'party',
+        attackBonus: 0,
+        guaranteed: true,
+        damage: def.damage ?? [1, 4],
+        damageBonus: statMod(c.stats.int),
+        glyph: def.glyph ?? '*',
+        color: def.color ?? '#41a6f6',
+        label: def.name,
+        hopMs: 60,
+        range: 10,
+      }),
+    );
+  }
+
+  /** A cone hitting the three cells in the row directly ahead (plan §6.3). */
+  private castCone(c: Character, def: SpellDef): void {
+    const { pos, facing } = this.party.getPose();
+    const fwd = delta(facing);
+    const right = delta(turnRight(facing));
+    let hits = 0;
+    for (const lat of [-1, 0, 1]) {
+      const cell = { x: pos.x + fwd.x + right.x * lat, y: pos.y + fwd.y + right.y * lat };
+      const m = this.monsterAt(cell.x, cell.y);
+      if (!m) continue;
+      const roll = resolveAttack(this.rng, attackBonus(c), m.species.ac);
+      if (roll.hit) {
+        const dmg = rollDamage(this.rng, def.damage ?? [2, 4], statMod(c.stats.int));
+        this.msg('combat', `The flames engulf the ${m.species.name} for ${dmg}.`);
+        this.hitMonster(m, dmg);
+        hits++;
+      } else {
+        this.msg('combat', `The ${m.species.name} dodges the flames.`);
+      }
+    }
+    if (hits === 0 && !this.monsterAt(pos.x + fwd.x, pos.y + fwd.y)) {
+      this.msg('ambient', 'The flames roar through empty air.');
+    }
+  }
+
+  /** Heals the neediest living ally; declines (no cost) if no one is hurt. */
+  private castHeal(def: SpellDef): boolean {
+    if (!this.roster) return false;
+    const wounded = this.roster.members
+      .map((m, i) => ({ m, i }))
+      .filter(({ m }) => !m.conditions.has('dead') && m.hp.cur < m.hp.max);
+    if (wounded.length === 0) {
+      this.msg('system', 'No one needs healing.');
+      return false;
+    }
+    wounded.sort((a, b) => a.m.hp.cur / a.m.hp.max - b.m.hp.cur / b.m.hp.max);
+    const target = wounded[0]!;
+    const amount = rollDamage(this.rng, def.healDice ?? [2, 6], statMod(target.m.stats.wis));
+    const healed = this.roster.heal(target.i, amount, this.bus);
+    this.msg('loot', `${target.m.name} recovers ${healed} HP.`);
+    return true;
+  }
+
+  /** Reveals nearby secret doors/illusions within a radius (plan §6.3). */
+  private castDetect(def: SpellDef): void {
+    const { pos } = this.party.getPose();
+    const r = def.detectRadius ?? 3;
+    let found = 0;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.abs(dx) + Math.abs(dy) > r) continue;
+        const x = pos.x + dx;
+        const y = pos.y + dy;
+        for (const dir of [0, 1, 2, 3] as Dir[]) {
+          const e = edgeAt(this.level, x, y, dir);
+          if (!e || e.detected) continue;
+          if (e.kind === 'illusion' || (e.kind === 'door' && e.door?.secret)) {
+            e.detected = true;
+            found++;
+          }
+        }
+      }
+    }
+    this.msg(
+      'ambient',
+      found > 0 ? `You sense ${found} hidden passage${found > 1 ? 's' : ''} nearby!` : 'You sense nothing hidden nearby.',
+    );
   }
 
   /** Operate whatever the party is facing: button/lever, keyhole, or alcove. */

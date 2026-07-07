@@ -5,13 +5,16 @@
 
 import { type Character, type Clazz, type Equipment, makeCharacter, statMod } from '../core/character';
 import type { Item } from '../core/item';
+import type { SpellDef } from '../core/spell';
 import { CLASSES } from './classes';
 import { item } from './items';
+import { spell } from './spells';
 
 interface Gear {
   hands?: [Item | null, Item | null];
   equipment?: Equipment;
   backpack?: (Item | null)[];
+  spells?: SpellDef[];
 }
 
 function build(name: string, clazz: Clazz, portrait: number, gear: Gear): Character {
@@ -31,9 +34,11 @@ export function defaultParty(): Character[] {
     build('Bram', 'cleric', 1, {
       hands: [null, item('wooden_shield')],
       backpack: [item('potion_heal')],
+      spells: [spell('cure_wounds'), spell('shield'), spell('light')],
     }),
     build('Sable', 'mage', 2, {
       backpack: [item('dagger')],
+      spells: [spell('magic_missile'), spell('burning_hands'), spell('detect_secret')],
     }),
     build('Pip', 'thief', 3, {
       hands: [item('dagger'), null],

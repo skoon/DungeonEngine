@@ -25,18 +25,21 @@ const COND_ICON: Record<string, string> = {
 export function drawPartyPanel(ctx: CanvasRenderingContext2D, roster: Roster, facing: Dir): void {
   roster.members.forEach((member, i) => {
     const rect = PARTY_CARDS[i];
-    if (rect) drawCard(ctx, rect, member, (roster.hurt[i] ?? 0) > 0);
+    if (rect) drawCard(ctx, rect, member, (roster.hurt[i] ?? 0) > 0, (roster.healFlash[i] ?? 0) > 0);
   });
   drawCompass(ctx, facing);
 }
 
-function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: boolean): void {
+function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: boolean, healed: boolean): void {
   const down = isDisabled(c);
   const accent = down ? COLORS.textDim : CLASS_COLOR[CLASSES[c.clazz].name] ?? COLORS.text;
 
-  // Damage flash: red wash over the whole card.
+  // Damage/heal flash: a colour wash over the whole card.
   if (hurt) {
     ctx.fillStyle = SWEETIE16.red;
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+  } else if (healed) {
+    ctx.fillStyle = SWEETIE16.green;
     ctx.fillRect(r.x, r.y, r.w, r.h);
   }
 
@@ -58,7 +61,9 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: bo
   if (c.mp.max > 0) {
     bar(ctx, tx, py + 34, 118, c.mp.cur, c.mp.max, COLORS.manaFill);
     text(ctx, `MP ${c.mp.cur}/${c.mp.max}`, tx, py + 34, COLORS.text);
+    if (c.spellCooldown > 0) text(ctx, 'casting...', tx + 122, py + 34, COLORS.textDim);
   }
+  if (c.buff) text(ctx, `+${c.buff.acBonus} AC`, tx + 122, py + 22, SWEETIE16.azure);
 
   // Two hand slots showing the equipped items.
   hand(ctx, c, 0, r.x + 4, r.y + r.h - 20);

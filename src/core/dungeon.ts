@@ -63,6 +63,8 @@ export interface EdgeWall {
   text?: string;
   /** A wall niche holding items you can take (plan §5). */
   alcove?: Item[];
+  /** Set once a Detect Secret spell reveals a hidden illusion/door (plan §6.3). */
+  detected?: boolean;
 }
 
 /**

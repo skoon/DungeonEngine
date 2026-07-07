@@ -15,6 +15,7 @@ import { drawMinimap } from './render/minimap';
 import { drawPartyPanel } from './render/partyPanel';
 import { LogPanel } from './render/logPanel';
 import { buildPlacements, drawInventory, navigate } from './render/inventoryOverlay';
+import { buildSpellEntries, drawSpellbook, navigateList } from './render/spellOverlay';
 import { LOG, contains } from './render/layout';
 import { bindKeyboard } from './input/input';
 import { startLoop } from './loop';
@@ -63,18 +64,26 @@ function grabOrPlace(): void {
   }
 }
 
+// --- Spellbook overlay state (also pauses the sim) --------------------------
+const spellEntries = buildSpellEntries(roster);
+const spellbook = { open: false, cursor: 0 };
+
+function anyMenuOpen(): boolean {
+  return inv.open || spellbook.open;
+}
+
 // Movement/interaction keys drive the World — but only when not in a menu.
 bindKeyboard({
-  forward: () => !inv.open && world.stepForward(),
-  back: () => !inv.open && world.stepBack(),
-  strafeLeft: () => !inv.open && world.strafeLeft(),
-  strafeRight: () => !inv.open && world.strafeRight(),
-  turnLeft: () => !inv.open && world.turnLeft(),
-  turnRight: () => !inv.open && world.turnRight(),
-  use: () => !inv.open && world.use(),
+  forward: () => !anyMenuOpen() && world.stepForward(),
+  back: () => !anyMenuOpen() && world.stepBack(),
+  strafeLeft: () => !anyMenuOpen() && world.strafeLeft(),
+  strafeRight: () => !anyMenuOpen() && world.strafeRight(),
+  turnLeft: () => !anyMenuOpen() && world.turnLeft(),
+  turnRight: () => !anyMenuOpen() && world.turnRight(),
+  use: () => !anyMenuOpen() && world.use(),
 });
 
-// Inventory + debug keys.
+// Inventory + spellbook + debug keys.
 const NAV: Record<string, 'up' | 'down' | 'left' | 'right'> = {
   arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down',
   arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right',
@@ -82,11 +91,18 @@ const NAV: Record<string, 'up' | 'down' | 'left' | 'right'> = {
 const debug = { minimap: false, slots: false };
 window.addEventListener('keydown', (ev) => {
   const k = ev.key.toLowerCase();
-  if (k === 'i') {
+
+  if (k === 'i' && !spellbook.open) {
     inv.open ? closeInventory() : openInventory();
     ev.preventDefault();
     return;
   }
+  if (k === 'c' && !inv.open) {
+    spellbook.open = !spellbook.open;
+    ev.preventDefault();
+    return;
+  }
+
   if (inv.open) {
     if (k === 'escape') return closeInventory();
     if (ev.repeat) return;
@@ -96,6 +112,24 @@ window.addEventListener('keydown', (ev) => {
     ev.preventDefault();
     return;
   }
+
+  if (spellbook.open) {
+    if (k === 'escape') {
+      spellbook.open = false;
+      return;
+    }
+    if (ev.repeat) return;
+    if (k === 'arrowup' || k === 'w') spellbook.cursor = navigateList(spellEntries.length, spellbook.cursor, -1);
+    else if (k === 'arrowdown' || k === 's') spellbook.cursor = navigateList(spellEntries.length, spellbook.cursor, 1);
+    else if (k === 'enter' || k === ' ') {
+      const entry = spellEntries[spellbook.cursor];
+      if (entry) world.cast(entry.member, entry.spellId);
+      spellbook.open = false;
+    }
+    ev.preventDefault();
+    return;
+  }
+
   if (k >= '1' && k <= '4') world.attack(Number(k) - 1);
   else if (k === 'm') debug.minimap = !debug.minimap;
   else if (k === 'g') debug.slots = !debug.slots;
@@ -105,7 +139,7 @@ window.addEventListener('keydown', (ev) => {
 window.addEventListener(
   'wheel',
   (ev) => {
-    if (inv.open) return;
+    if (anyMenuOpen()) return;
     const p = screen.clientToBackbuffer(ev.clientX, ev.clientY);
     if (!p || !contains(LOG, p.x, p.y)) return;
     ev.preventDefault();
@@ -115,7 +149,11 @@ window.addEventListener(
 );
 
 bus.emit({ type: 'log/message', channel: 'system', text: `You enter ${level.name}.` });
-bus.emit({ type: 'log/message', channel: 'ambient', text: 'Move WASD/arrows, turn Q/E, use Space, attack 1-4, inv I.' });
+bus.emit({
+  type: 'log/message',
+  channel: 'ambient',
+  text: 'Move WASD/arrows, turn Q/E, use Space, attack 1-4, inv I, spells C.',
+});
 
 function renderFrame(): void {
   const { ctx } = screen;
@@ -124,10 +162,22 @@ function renderFrame(): void {
     screen.present();
     return;
   }
+  if (spellbook.open) {
+    drawSpellbook(ctx, spellEntries, spellbook.cursor);
+    screen.present();
+    return;
+  }
   const pose = world.party.getPose();
   drawChrome(ctx);
   if (debug.minimap) drawMinimap(ctx, level, pose);
-  else drawViewport(ctx, level, pose, world.monsters, { showSlots: debug.slots });
+  else {
+    drawViewport(ctx, level, pose, {
+      monsters: world.monsters,
+      projectiles: world.projectiles,
+      lit: world.isLit(),
+      showSlots: debug.slots,
+    });
+  }
   drawPartyPanel(ctx, roster, pose.facing);
   logPanel.draw(ctx);
   screen.present();
@@ -135,7 +185,7 @@ function renderFrame(): void {
 
 startLoop({
   update: (tick) => {
-    if (!inv.open) world.tick(100); // sim frozen while the menu is open
+    if (!anyMenuOpen()) world.tick(100); // sim frozen while a menu is open
     bus.emit({ type: 'sim/tick', tick });
   },
   render: renderFrame,
@@ -149,5 +199,8 @@ if (import.meta.env.DEV) {
     __roster: roster,
     __inv: inv,
     __placements: placements,
+    __spellbook: spellbook,
+    __spellEntries: spellEntries,
+    __level: level,
   });
 }
