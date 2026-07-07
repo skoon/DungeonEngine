@@ -14,6 +14,8 @@ import type { InvContext, SlotRef } from '../core/inventory';
 import { itemAt } from '../core/inventory';
 import { COLORS, SWEETIE16 } from './palette';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from './screen';
+import { contains } from './layout';
+import { drawCloseButton } from './controls';
 import { drawItemIcon, drawSlotBox } from './itemIcon';
 import { text } from './text';
 
@@ -57,11 +59,13 @@ export function drawInventory(
   placements: Placement[],
   cursor: number,
   held: Item | null,
+  mouse?: { x: number; y: number } | null,
 ): void {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
   text(ctx, 'INVENTORY', 8, 6, COLORS.title);
-  text(ctx, 'arrows move  Enter grab/place  I/Esc close', 90, 6, COLORS.textDim);
+  text(ctx, 'click / arrows+Enter to move items   I / Esc / X to close', 90, 6, COLORS.textDim);
+  drawCloseButton(ctx);
 
   ctxInv.roster.members.forEach((c, m) => {
     header(ctx, 8 + m * 156, c);
@@ -75,12 +79,22 @@ export function drawInventory(
     else if (p.label) text(ctx, p.label, p.x + 5, p.y + 4, COLORS.textDim);
   });
 
-  // Held item rides just under the title.
+  // Held item rides the cursor (mouse position if we have it, else a fixed
+  // dock under the title so it stays visible for keyboard-only play).
   if (held) {
-    text(ctx, `holding:`, 8, 20, COLORS.text);
-    drawItemIcon(ctx, held, 52, 16, S);
-    text(ctx, held.tpl.name, 72, 20, held.tpl.color);
+    if (mouse) {
+      drawItemIcon(ctx, held, mouse.x - S / 2, mouse.y - S / 2, S);
+    } else {
+      text(ctx, 'holding:', 8, 20, COLORS.text);
+      drawItemIcon(ctx, held, 52, 16, S);
+      text(ctx, held.tpl.name, 72, 20, held.tpl.color);
+    }
   }
+}
+
+/** Index of the placement whose slot the point falls in, or -1. */
+export function hitPlacement(placements: Placement[], x: number, y: number): number {
+  return placements.findIndex((p) => contains({ x: p.x, y: p.y, w: S, h: S }, x, y));
 }
 
 function header(ctx: CanvasRenderingContext2D, x: number, c: Character): void {

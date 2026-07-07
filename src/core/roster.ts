@@ -48,9 +48,9 @@ export class Roster {
   swap(i: number, j: number): void {
     const m = this.members;
     if (i < 0 || j < 0 || i >= m.length || j >= m.length) return;
-    const tmp = m[i]!;
-    m[i] = m[j]!;
-    m[j] = tmp;
+    swapAt(m, i, j);
+    swapAt(this.hurt, i, j); // keep transient flashes with their character
+    swapAt(this.healFlash, i, j);
   }
 
   /** First member with a free backpack slot, or -1. */
@@ -99,4 +99,10 @@ export class Roster {
     }
     return actual;
   }
+}
+
+function swapAt<T>(arr: T[], i: number, j: number): void {
+  const tmp = arr[i]!;
+  arr[i] = arr[j]!;
+  arr[j] = tmp;
 }

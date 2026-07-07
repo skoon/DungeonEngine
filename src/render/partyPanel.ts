@@ -22,10 +22,21 @@ const COND_ICON: Record<string, string> = {
   dead: '+',
 };
 
-export function drawPartyPanel(ctx: CanvasRenderingContext2D, roster: Roster, facing: Dir): void {
+export function drawPartyPanel(
+  ctx: CanvasRenderingContext2D,
+  roster: Roster,
+  facing: Dir,
+  selected?: number,
+): void {
   roster.members.forEach((member, i) => {
     const rect = PARTY_CARDS[i];
-    if (rect) drawCard(ctx, rect, member, (roster.hurt[i] ?? 0) > 0, (roster.healFlash[i] ?? 0) > 0);
+    if (!rect) return;
+    drawCard(ctx, rect, member, (roster.hurt[i] ?? 0) > 0, (roster.healFlash[i] ?? 0) > 0);
+    if (i === selected) {
+      // Formation swap: this card is picked, awaiting a partner (M8).
+      ctx.strokeStyle = SWEETIE16.yellow;
+      ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.w - 1, rect.h - 1);
+    }
   });
   drawCompass(ctx, facing);
 }

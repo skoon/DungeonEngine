@@ -115,13 +115,13 @@ export class World {
    * as a projectile down the corridor — the back rank may always do this,
    * since throwing doesn't need reach the way melee does.
    */
-  attack(index: number): void {
+  attack(index: number, forceHand?: 0 | 1): void {
     if (!this.roster) return;
     const c = this.roster.member(index);
     if (!c || isDisabled(c)) return;
 
-    const weaponHand = c.hands.findIndex((h) => h && isWeapon(h));
-    const hand: 0 | 1 = weaponHand === 1 ? 1 : 0;
+    const autoHand = c.hands.findIndex((h) => h && isWeapon(h));
+    const hand: 0 | 1 = forceHand ?? (autoHand === 1 ? 1 : 0);
     if ((c.cooldowns[hand] ?? 0) > 0) {
       this.msg('system', `${c.name} is not ready.`);
       return;
@@ -542,6 +542,26 @@ export class World {
       if (held.some((it) => it?.tpl.keyId === keyId)) return true;
     }
     return false;
+  }
+
+  /** Scoop up whatever is lying on the party's current cell (click-to-grab,
+   * M8). Items that don't fit are left on the floor. */
+  takeFloorItems(): void {
+    if (!this.roster) return;
+    const pos = this.party.getPose().pos;
+    const cell = cellAt(this.level, pos.x, pos.y);
+    if (!cell?.items || cell.items.length === 0) return;
+    const remaining: Item[] = [];
+    for (const it of cell.items) {
+      if (this.roster.stow(it)) {
+        this.bus.emit({ type: 'item/taken', name: it.tpl.name });
+        this.msg('loot', `You pick up the ${it.tpl.name}.`);
+      } else {
+        remaining.push(it);
+      }
+    }
+    cell.items = remaining;
+    if (remaining.length > 0) this.msg('system', 'Your packs are full.');
   }
 
   private move(step: StepDir): boolean {

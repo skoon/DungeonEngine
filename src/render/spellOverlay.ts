@@ -10,6 +10,7 @@ import type { Character } from '../core/character';
 import type { Roster } from '../core/roster';
 import { COLORS, SWEETIE16 } from './palette';
 import { NATIVE_HEIGHT, NATIVE_WIDTH } from './screen';
+import { drawCloseButton } from './controls';
 import { text } from './text';
 
 export interface SpellEntry {
@@ -38,7 +39,8 @@ export function drawSpellbook(
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, NATIVE_WIDTH, NATIVE_HEIGHT);
   text(ctx, 'SPELLBOOK', 8, 6, COLORS.title);
-  text(ctx, 'up/down select  Enter cast  C/Esc close', 90, 6, COLORS.textDim);
+  text(ctx, 'click a spell to cast   up/down+Enter   C / Esc / X to close', 90, 6, COLORS.textDim);
+  drawCloseButton(ctx);
 
   if (entries.length === 0) {
     text(ctx, 'No one knows any spells.', 8, TOP, COLORS.textDim);
@@ -62,4 +64,11 @@ export function drawSpellbook(
 export function navigateList(length: number, cursor: number, delta: number): number {
   if (length === 0) return 0;
   return (cursor + delta + length) % length;
+}
+
+/** Index of the spell row under a point, or -1. */
+export function hitEntry(count: number, x: number, y: number): number {
+  if (x < 4 || x > NATIVE_WIDTH - 4) return -1;
+  const i = Math.floor((y - (TOP - 1)) / ROW_H);
+  return i >= 0 && i < count ? i : -1;
 }

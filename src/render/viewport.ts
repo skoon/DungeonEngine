@@ -421,6 +421,66 @@ function line(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number,
   ctx.stroke();
 }
 
+// -- Hit testing (§4.4): recompute the same geometry, no drawing ------------
+
+export type ViewportPick = { kind: 'attack' } | { kind: 'use' } | { kind: 'floor' };
+
+function monsterBox(row: number, lat: number): { x0: number; y0: number; x1: number; y1: number } {
+  const foot = centroid(floorQuad(row, lat));
+  const h = MONSTER_H[row] ?? 30;
+  const w = h * 0.55;
+  return { x0: foot.x - w / 2, y0: foot.y - h, x1: foot.x + w / 2, y1: foot.y };
+}
+
+function inBox(pt: Point, b: { x0: number; y0: number; x1: number; y1: number }): boolean {
+  return pt.x >= b.x0 && pt.x <= b.x1 && pt.y >= b.y0 && pt.y <= b.y1;
+}
+
+function edgeActionable(e: EdgeWall | undefined): boolean {
+  if (!e) return false;
+  if (e.interact) return true;
+  if (e.kind === 'door' && e.door && !e.door.open && e.door.keyId) return true;
+  return !!e.alcove && e.alcove.length > 0;
+}
+
+/**
+ * What, if anything, a viewport click lands on. Recomputes the visible
+ * scene + projection (deterministic, matching the draw pass) and tests the
+ * point near-to-far so nearer things win — no coupling to rendering.
+ */
+export function pickViewport(
+  level: Level,
+  pose: Pose,
+  monsters: Monster[],
+  pt: Point,
+): ViewportPick | null {
+  const occupied = new Set<string>();
+  for (const m of monsters) if (m.state !== 'dead') occupied.add(`${m.pos.x},${m.pos.y}`);
+
+  const slots = buildScene(level, pose);
+  for (let i = slots.length - 1; i >= 0; i--) {
+    const slot = slots[i]!;
+    if (occupied.has(`${slot.cell.x},${slot.cell.y}`) && slot.row <= 3 && inBox(pt, monsterBox(slot.row, slot.lat))) {
+      return { kind: 'attack' };
+    }
+    if (slot.front) {
+      const e = edgeAt(level, slot.cell.x, slot.cell.y, pose.facing);
+      if (edgeActionable(e)) {
+        const r = frontRect(slot.row, slot.lat);
+        if (inBox(pt, { x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1 })) return { kind: 'use' };
+      }
+    }
+    if (slot.row === 0) {
+      const items = cellAt(level, slot.cell.x, slot.cell.y)?.items;
+      if (items && items.length > 0) {
+        const c = centroid(floorQuad(0, slot.lat));
+        if (inBox(pt, { x0: c.x - 24, y0: c.y - 14, x1: c.x + 24, y1: c.y + 14 })) return { kind: 'floor' };
+      }
+    }
+  }
+  return null;
+}
+
 function drawSlotOverlay(ctx: CanvasRenderingContext2D, slots: WallSlot[]): void {
   const openKeys = new Set(slots.map((s) => `${s.row},${s.lat}`));
   ctx.lineWidth = 1;

@@ -10,13 +10,17 @@ import { level1 } from './data/maps/level1';
 import { defaultParty } from './data/party';
 import { Screen } from './render/screen';
 import { drawChrome } from './render/chrome';
-import { drawViewport } from './render/viewport';
+import { drawViewport, pickViewport } from './render/viewport';
 import { drawMinimap } from './render/minimap';
 import { drawPartyPanel } from './render/partyPanel';
 import { LogPanel } from './render/logPanel';
-import { buildPlacements, drawInventory, navigate } from './render/inventoryOverlay';
-import { buildSpellEntries, drawSpellbook, navigateList } from './render/spellOverlay';
-import { LOG, contains } from './render/layout';
+import { buildPlacements, drawInventory, hitPlacement, navigate } from './render/inventoryOverlay';
+import { buildSpellEntries, drawSpellbook, hitEntry, navigateList, type SpellEntry } from './render/spellOverlay';
+import { drawHeaderButtons, drawMovePad } from './render/controls';
+import {
+  CLOSE_BUTTON, LOG, MOVE_BUTTONS, PARTY, PARTY_CARDS, UI_BUTTONS, VIEWPORT,
+  type MoveId, contains, handSlotRect, portraitRect,
+} from './render/layout';
 import { bindKeyboard } from './input/input';
 import { startLoop } from './loop';
 
@@ -30,14 +34,18 @@ const roster = new Roster(defaultParty());
 const world = new World(level, bus, new Rng(Date.now() >>> 0), roster);
 const logPanel = new LogPanel(bus);
 
-// --- Inventory overlay state (pauses the sim while open) -------------------
+// --- Overlay + interaction state -------------------------------------------
 const placements = buildPlacements(roster);
 const inv: { open: boolean; cursor: number; held: Item | null; ctx: InvContext } = {
-  open: false,
-  cursor: 0,
-  held: null,
-  ctx: { roster, floor: [] },
+  open: false, cursor: 0, held: null, ctx: { roster, floor: [] },
 };
+const spellbook: { open: boolean; cursor: number; entries: SpellEntry[] } = {
+  open: false, cursor: 0, entries: [],
+};
+let swapSel: number | null = null; // formation-swap: first-picked card
+let mouse: { x: number; y: number } | null = null;
+
+const anyMenuOpen = (): boolean => inv.open || spellbook.open;
 
 function openInventory(): void {
   const pos = world.party.getPose().pos;
@@ -45,10 +53,11 @@ function openInventory(): void {
   if (cell && !cell.items) cell.items = [];
   inv.ctx = { roster, floor: cell?.items ?? [] };
   inv.open = true;
+  spellbook.open = false;
 }
 function closeInventory(): void {
   if (inv.held) {
-    inv.ctx.floor.push(inv.held); // don't lose the item on the cursor
+    inv.ctx.floor.push(inv.held);
     inv.held = null;
   }
   inv.open = false;
@@ -63,16 +72,23 @@ function grabOrPlace(): void {
     inv.held = placeInto(inv.ctx, ref, inv.held);
   }
 }
-
-// --- Spellbook overlay state (also pauses the sim) --------------------------
-const spellEntries = buildSpellEntries(roster);
-const spellbook = { open: false, cursor: 0 };
-
-function anyMenuOpen(): boolean {
-  return inv.open || spellbook.open;
+function openSpellbook(): void {
+  spellbook.entries = buildSpellEntries(roster); // refresh after any swap
+  spellbook.cursor = 0;
+  spellbook.open = true;
+  inv.open = false;
 }
 
-// Movement/interaction keys drive the World — but only when not in a menu.
+const MOVE: Record<MoveId, () => void> = {
+  forward: () => world.stepForward(),
+  back: () => world.stepBack(),
+  strafeLeft: () => world.strafeLeft(),
+  strafeRight: () => world.strafeRight(),
+  turnLeft: () => world.turnLeft(),
+  turnRight: () => world.turnRight(),
+};
+
+// --- Keyboard (unchanged bindings, still fully playable) --------------------
 bindKeyboard({
   forward: () => !anyMenuOpen() && world.stepForward(),
   back: () => !anyMenuOpen() && world.stepBack(),
@@ -83,7 +99,6 @@ bindKeyboard({
   use: () => !anyMenuOpen() && world.use(),
 });
 
-// Inventory + spellbook + debug keys.
 const NAV: Record<string, 'up' | 'down' | 'left' | 'right'> = {
   arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down',
   arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right',
@@ -98,7 +113,7 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   if (k === 'c' && !inv.open) {
-    spellbook.open = !spellbook.open;
+    spellbook.open ? (spellbook.open = false) : openSpellbook();
     ev.preventDefault();
     return;
   }
@@ -112,18 +127,14 @@ window.addEventListener('keydown', (ev) => {
     ev.preventDefault();
     return;
   }
-
   if (spellbook.open) {
-    if (k === 'escape') {
-      spellbook.open = false;
-      return;
-    }
+    if (k === 'escape') { spellbook.open = false; return; }
     if (ev.repeat) return;
-    if (k === 'arrowup' || k === 'w') spellbook.cursor = navigateList(spellEntries.length, spellbook.cursor, -1);
-    else if (k === 'arrowdown' || k === 's') spellbook.cursor = navigateList(spellEntries.length, spellbook.cursor, 1);
+    if (k === 'arrowup' || k === 'w') spellbook.cursor = navigateList(spellbook.entries.length, spellbook.cursor, -1);
+    else if (k === 'arrowdown' || k === 's') spellbook.cursor = navigateList(spellbook.entries.length, spellbook.cursor, 1);
     else if (k === 'enter' || k === ' ') {
-      const entry = spellEntries[spellbook.cursor];
-      if (entry) world.cast(entry.member, entry.spellId);
+      const e = spellbook.entries[spellbook.cursor];
+      if (e) world.cast(e.member, e.spellId);
       spellbook.open = false;
     }
     ev.preventDefault();
@@ -134,6 +145,84 @@ window.addEventListener('keydown', (ev) => {
   else if (k === 'm') debug.minimap = !debug.minimap;
   else if (k === 'g') debug.slots = !debug.slots;
 });
+
+// --- Pointer (mouse + touch) ------------------------------------------------
+window.addEventListener('pointermove', (ev) => {
+  mouse = screen.clientToBackbuffer(ev.clientX, ev.clientY);
+});
+window.addEventListener('pointerdown', (ev) => {
+  const p = screen.clientToBackbuffer(ev.clientX, ev.clientY);
+  if (!p) return;
+  ev.preventDefault();
+  onPointerDown(p.x, p.y);
+});
+
+function onPointerDown(x: number, y: number): void {
+  if (inv.open) return onInventoryClick(x, y);
+  if (spellbook.open) return onSpellbookClick(x, y);
+
+  // Move pad (overlays the viewport, so test it first).
+  for (const b of MOVE_BUTTONS) if (contains(b.rect, x, y)) return MOVE[b.id]();
+  // Header buttons.
+  for (const b of UI_BUTTONS) if (contains(b.rect, x, y)) return b.id === 'bag' ? openInventory() : openSpellbook();
+
+  if (contains(PARTY, x, y)) return onPartyClick(x, y);
+  if (contains(VIEWPORT, x, y)) return onViewportClick(x, y);
+}
+
+function onPartyClick(x: number, y: number): void {
+  for (let i = 0; i < roster.members.length; i++) {
+    const port = portraitRect(i);
+    if (port && contains(port, x, y)) return void openInventory();
+    for (const hand of [0, 1] as const) {
+      const hs = handSlotRect(i, hand);
+      if (hs && contains(hs, x, y)) return world.attack(i, hand);
+    }
+    const card = PARTY_CARDS[i];
+    if (card && contains(card, x, y)) return void selectForSwap(i);
+  }
+}
+
+function selectForSwap(i: number): void {
+  if (swapSel === null) swapSel = i;
+  else if (swapSel === i) swapSel = null;
+  else {
+    roster.swap(swapSel, i);
+    swapSel = null;
+  }
+}
+
+function onViewportClick(x: number, y: number): void {
+  const pick = pickViewport(level, world.party.getPose(), world.monsters, { x, y });
+  if (!pick) return;
+  if (pick.kind === 'attack') {
+    world.attack(0);
+    world.attack(1); // both front-rank members swing at the cell ahead
+  } else if (pick.kind === 'use') {
+    world.use();
+  } else {
+    world.takeFloorItems();
+  }
+}
+
+function onInventoryClick(x: number, y: number): void {
+  if (contains(CLOSE_BUTTON, x, y)) return closeInventory();
+  const idx = hitPlacement(placements, x, y);
+  if (idx >= 0) {
+    inv.cursor = idx;
+    grabOrPlace();
+  }
+}
+
+function onSpellbookClick(x: number, y: number): void {
+  if (contains(CLOSE_BUTTON, x, y)) { spellbook.open = false; return; }
+  const idx = hitEntry(spellbook.entries.length, x, y);
+  if (idx >= 0) {
+    const e = spellbook.entries[idx];
+    if (e) world.cast(e.member, e.spellId);
+    spellbook.open = false;
+  }
+}
 
 // Mouse-wheel scrollback over the log pane.
 window.addEventListener(
@@ -152,33 +241,36 @@ bus.emit({ type: 'log/message', channel: 'system', text: `You enter ${level.name
 bus.emit({
   type: 'log/message',
   channel: 'ambient',
-  text: 'Move WASD/arrows, turn Q/E, use Space, attack 1-4, inv I, spells C.',
+  text: 'Playable by mouse or keyboard: click the world, hands, and on-screen buttons.',
 });
 
 function renderFrame(): void {
   const { ctx } = screen;
   if (inv.open) {
-    drawInventory(ctx, inv.ctx, placements, inv.cursor, inv.held);
+    drawInventory(ctx, inv.ctx, placements, inv.cursor, inv.held, mouse);
     screen.present();
     return;
   }
   if (spellbook.open) {
-    drawSpellbook(ctx, spellEntries, spellbook.cursor);
+    drawSpellbook(ctx, spellbook.entries, spellbook.cursor);
     screen.present();
     return;
   }
   const pose = world.party.getPose();
   drawChrome(ctx);
-  if (debug.minimap) drawMinimap(ctx, level, pose);
-  else {
+  if (debug.minimap) {
+    drawMinimap(ctx, level, pose);
+  } else {
     drawViewport(ctx, level, pose, {
       monsters: world.monsters,
       projectiles: world.projectiles,
       lit: world.isLit(),
       showSlots: debug.slots,
     });
+    drawMovePad(ctx);
   }
-  drawPartyPanel(ctx, roster, pose.facing);
+  drawPartyPanel(ctx, roster, pose.facing, swapSel ?? undefined);
+  drawHeaderButtons(ctx);
   logPanel.draw(ctx);
   screen.present();
 }
@@ -200,7 +292,7 @@ if (import.meta.env.DEV) {
     __inv: inv,
     __placements: placements,
     __spellbook: spellbook,
-    __spellEntries: spellEntries,
     __level: level,
+    __click: onPointerDown,
   });
 }
