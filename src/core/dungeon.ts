@@ -73,16 +73,27 @@ export interface EdgeWall {
  * couple of built-in behaviours (pit fall). Plates fire on enter and leave.
  */
 export interface CellTrigger {
-  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext';
+  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext' | 'altar';
   onEnter?: Action[];
   onLeave?: Action[];
   /** Whether the renderer draws a floor marker (hidden plates: false). */
   visible?: boolean;
   text?: string;
+  /** Destination for stairs/pit level transitions (plan §5/M9). */
+  link?: LevelLink;
+}
+
+export interface LevelLink {
+  /** Index of the target level in the dungeon. */
+  level: number;
+  pos: Vec2;
+  facing?: Dir;
 }
 
 export interface Level {
   name: string;
+  /** Visual theme id for the renderer (plan M10); defaults to 'brick'. */
+  tileset: string;
   width: number;
   height: number;
   /** Row-major, length = width * height. */

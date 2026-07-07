@@ -6,8 +6,9 @@ import { Roster } from './core/roster';
 import { cellAt } from './core/dungeon';
 import type { Item } from './core/item';
 import { type InvContext, pickUp, placeInto } from './core/inventory';
-import { level1 } from './data/maps/level1';
+import { dungeonMaps } from './data/maps';
 import { defaultParty } from './data/party';
+import { hasSave, loadFromStorage, saveToStorage } from './save/save';
 import { Screen } from './render/screen';
 import { drawChrome } from './render/chrome';
 import { drawViewport, pickViewport } from './render/viewport';
@@ -16,11 +17,13 @@ import { drawPartyPanel } from './render/partyPanel';
 import { LogPanel } from './render/logPanel';
 import { buildPlacements, drawInventory, hitPlacement, navigate } from './render/inventoryOverlay';
 import { buildSpellEntries, drawSpellbook, hitEntry, navigateList, type SpellEntry } from './render/spellOverlay';
+import { buildTitleItems, drawTitle, hitTitle, type TitleItem } from './render/titleScreen';
 import { drawHeaderButtons, drawMovePad } from './render/controls';
 import {
   CLOSE_BUTTON, LOG, MOVE_BUTTONS, PARTY, PARTY_CARDS, UI_BUTTONS, VIEWPORT,
   type MoveId, contains, handSlotRect, portraitRect,
 } from './render/layout';
+import { GameAudio } from './audio/audio';
 import { bindKeyboard } from './input/input';
 import { startLoop } from './loop';
 
@@ -29,10 +32,21 @@ if (!container) throw new Error('#app container missing');
 
 const screen = new Screen(container);
 const bus = new EventBus();
-const level = parseMap(level1);
+const levels = dungeonMaps.map((m) => parseMap(m));
 const roster = new Roster(defaultParty());
-const world = new World(level, bus, new Rng(Date.now() >>> 0), roster);
+const rng = new Rng(Date.now() >>> 0);
+const world = new World(levels, bus, rng, roster);
 const logPanel = new LogPanel(bus);
+const audio = new GameAudio();
+audio.attach(bus);
+
+// The active level changes as the party descends; `level` tracks it for
+// coordinate-space lookups (inventory ground, etc.).
+let level = world.level;
+bus.on('level/changed', () => {
+  level = world.level;
+  saveToStorage(world, roster, rng); // autosave on stairs/pit (plan M9)
+});
 
 // --- Overlay + interaction state -------------------------------------------
 const placements = buildPlacements(roster);
@@ -44,6 +58,15 @@ const spellbook: { open: boolean; cursor: number; entries: SpellEntry[] } = {
 };
 let swapSel: number | null = null; // formation-swap: first-picked card
 let mouse: { x: number; y: number } | null = null;
+
+// Title screen gates the start of play.
+let mode: 'title' | 'play' = 'title';
+const title: { cursor: number; items: TitleItem[] } = { cursor: 0, items: buildTitleItems(hasSave()) };
+
+function chooseTitle(id: 'new' | 'continue'): void {
+  if (id === 'continue') loadGame(); // else start on the fresh new-game world
+  mode = 'play';
+}
 
 const anyMenuOpen = (): boolean => inv.open || spellbook.open;
 
@@ -89,14 +112,16 @@ const MOVE: Record<MoveId, () => void> = {
 };
 
 // --- Keyboard (unchanged bindings, still fully playable) --------------------
+// Movement acts only during play (not on the title screen or in a menu).
+const canAct = (): boolean => mode === 'play' && !anyMenuOpen();
 bindKeyboard({
-  forward: () => !anyMenuOpen() && world.stepForward(),
-  back: () => !anyMenuOpen() && world.stepBack(),
-  strafeLeft: () => !anyMenuOpen() && world.strafeLeft(),
-  strafeRight: () => !anyMenuOpen() && world.strafeRight(),
-  turnLeft: () => !anyMenuOpen() && world.turnLeft(),
-  turnRight: () => !anyMenuOpen() && world.turnRight(),
-  use: () => !anyMenuOpen() && world.use(),
+  forward: () => canAct() && world.stepForward(),
+  back: () => canAct() && world.stepBack(),
+  strafeLeft: () => canAct() && world.strafeLeft(),
+  strafeRight: () => canAct() && world.strafeRight(),
+  turnLeft: () => canAct() && world.turnLeft(),
+  turnRight: () => canAct() && world.turnRight(),
+  use: () => canAct() && world.use(),
 });
 
 const NAV: Record<string, 'up' | 'down' | 'left' | 'right'> = {
@@ -105,7 +130,26 @@ const NAV: Record<string, 'up' | 'down' | 'left' | 'right'> = {
 };
 const debug = { minimap: false, slots: false };
 window.addEventListener('keydown', (ev) => {
+  audio.unlock(); // browsers only permit audio after a user gesture
   const k = ev.key.toLowerCase();
+  if (k === 'n') {
+    audio.toggleMute();
+    ev.preventDefault();
+    return;
+  }
+
+  if (mode === 'title') {
+    if (ev.repeat) return;
+    const n = title.items.length;
+    if (k === 'arrowup' || k === 'w') title.cursor = (title.cursor + n - 1) % n;
+    else if (k === 'arrowdown' || k === 's') title.cursor = (title.cursor + 1) % n;
+    else if (k === 'enter' || k === ' ') {
+      const it = title.items[title.cursor];
+      if (it?.enabled) chooseTitle(it.id);
+    }
+    ev.preventDefault();
+    return;
+  }
 
   if (k === 'i' && !spellbook.open) {
     inv.open ? closeInventory() : openInventory();
@@ -142,15 +186,34 @@ window.addEventListener('keydown', (ev) => {
   }
 
   if (k >= '1' && k <= '4') world.attack(Number(k) - 1);
+  else if (k === 'r') world.camp();
+  else if (k === 'k') saveGame();
+  else if (k === 'l') loadGame();
   else if (k === 'm') debug.minimap = !debug.minimap;
   else if (k === 'g') debug.slots = !debug.slots;
 });
+
+function saveGame(): void {
+  saveToStorage(world, roster, rng);
+  bus.emit({ type: 'game/saved' });
+  bus.emit({ type: 'log/message', channel: 'system', text: 'Game saved.' });
+}
+function loadGame(): void {
+  if (loadFromStorage(world, roster, rng)) {
+    level = world.level;
+    bus.emit({ type: 'game/loaded' });
+    bus.emit({ type: 'log/message', channel: 'system', text: 'Game loaded.' });
+  } else {
+    bus.emit({ type: 'log/message', channel: 'system', text: 'No saved game found.' });
+  }
+}
 
 // --- Pointer (mouse + touch) ------------------------------------------------
 window.addEventListener('pointermove', (ev) => {
   mouse = screen.clientToBackbuffer(ev.clientX, ev.clientY);
 });
 window.addEventListener('pointerdown', (ev) => {
+  audio.unlock();
   const p = screen.clientToBackbuffer(ev.clientX, ev.clientY);
   if (!p) return;
   ev.preventDefault();
@@ -158,6 +221,11 @@ window.addEventListener('pointerdown', (ev) => {
 });
 
 function onPointerDown(x: number, y: number): void {
+  if (mode === 'title') {
+    const idx = hitTitle(title.items, x, y);
+    if (idx >= 0) chooseTitle(title.items[idx]!.id);
+    return;
+  }
   if (inv.open) return onInventoryClick(x, y);
   if (spellbook.open) return onSpellbookClick(x, y);
 
@@ -241,11 +309,16 @@ bus.emit({ type: 'log/message', channel: 'system', text: `You enter ${level.name
 bus.emit({
   type: 'log/message',
   channel: 'ambient',
-  text: 'Playable by mouse or keyboard: click the world, hands, and on-screen buttons.',
+  text: 'Rest R, save K, load L, sound N. Playable by mouse or keyboard.',
 });
 
 function renderFrame(): void {
   const { ctx } = screen;
+  if (mode === 'title') {
+    drawTitle(ctx, title.items, title.cursor);
+    screen.present();
+    return;
+  }
   if (inv.open) {
     drawInventory(ctx, inv.ctx, placements, inv.cursor, inv.held, mouse);
     screen.present();
@@ -277,7 +350,7 @@ function renderFrame(): void {
 
 startLoop({
   update: (tick) => {
-    if (!anyMenuOpen()) world.tick(100); // sim frozen while a menu is open
+    if (mode === 'play' && !anyMenuOpen()) world.tick(100); // frozen on title / in menus
     bus.emit({ type: 'sim/tick', tick });
   },
   render: renderFrame,
@@ -294,5 +367,7 @@ if (import.meta.env.DEV) {
     __spellbook: spellbook,
     __level: level,
     __click: onPointerDown,
+    __audio: audio,
+    __mode: () => mode,
   });
 }

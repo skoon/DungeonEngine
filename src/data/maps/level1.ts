@@ -104,7 +104,8 @@ export const level1: MapSource = {
       ],
       onLeave: [{ do: 'closeDoor', edge: { x: 6, y: 4, dir: Dir.N } }],
     },
-    { x: 3, y: 6, kind: 'pit', visible: true },
+    // Pit trap: drops the party into the middle of the crypt below (hurt).
+    { x: 3, y: 6, kind: 'pit', visible: true, link: { level: 1, pos: { x: 6, y: 4 }, facing: Dir.S } },
     {
       x: 9,
       y: 6,
@@ -117,7 +118,8 @@ export const level1: MapSource = {
       y: 6,
       kind: 'stairs',
       visible: true,
-      text: 'A stair spirals down — you have escaped the Pillared Hall!',
+      text: 'A stair spirals down into the dark.',
+      link: { level: 1, pos: { x: 1, y: 1 }, facing: Dir.E },
     },
   ],
 };

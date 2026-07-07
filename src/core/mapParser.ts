@@ -63,6 +63,8 @@ export interface MonsterSpec {
 
 export interface MapSource {
   name: string;
+  /** Visual theme id ('brick' default, 'crypt', ...) — plan M10. */
+  tileset?: string;
   ascii: string;
   /** Thin walls, doors, illusions, alcoves, and wall-mounted interactables. */
   edges?: EdgeSpec[];
@@ -149,7 +151,7 @@ export function parseMap(source: MapSource): Level {
     return { pos: { x: m.x, y: m.y }, facing: m.facing ?? D.N, species: m.species };
   });
 
-  return { name: source.name, width, height, cells, edges, start, spawns };
+  return { name: source.name, tileset: source.tileset ?? 'brick', width, height, cells, edges, start, spawns };
 }
 
 function buildEdge(spec: EdgeSpec): EdgeWall {

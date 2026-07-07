@@ -61,7 +61,7 @@ export class Party {
   private pose: Pose;
 
   constructor(
-    private readonly level: Level,
+    private level: Level,
     private readonly bus: EventBus,
     start: Pose = clonePose(level.start),
   ) {
@@ -70,6 +70,13 @@ export class Party {
 
   getPose(): Readonly<Pose> {
     return this.pose;
+  }
+
+  /** Move the party onto a different level at a given pose (stairs/pit). */
+  enter(level: Level, pos: Vec2, facing: Dir): void {
+    this.level = level;
+    this.pose = { pos: { ...pos }, facing };
+    this.bus.emit({ type: 'party/teleported', x: pos.x, y: pos.y, facing });
   }
 
   step(step: StepDir): boolean {

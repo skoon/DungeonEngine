@@ -10,9 +10,9 @@
  */
 
 import { type Dir, type Vec2, delta, translate, turnRight } from './grid';
-import { type EdgeWall, type Level, canEnter, cellAt, cellTriggerAt, edgeAt } from './dungeon';
+import { type EdgeWall, type Level, canEnter, cellAt, cellTriggerAt, edgeAt, isWalkable } from './dungeon';
 import { Party, type StepDir, stepDirection } from './party';
-import { type Monster, decideState, spawnMonster } from './monster';
+import { type Monster, type MonsterState, type MonsterSpecies, decideState, spawnMonster } from './monster';
 import { type Projectile, spawnProjectile } from './projectile';
 import { resolveAttack, rollDamage } from './combat';
 import { type Blocked, manhattan, stepAway, stepToward } from './path';
@@ -28,20 +28,84 @@ const DOOR_RATE = 0.006; // progress units per ms (~170ms open/close)
 const MAX_TELEPORT_HOPS = 8;
 const MONSTER_FLASH_MS = 180;
 
+// --- Save snapshot shapes (plan §7). Items/species by registry id. ---------
+export interface ItemRef {
+  id: string;
+  count?: number;
+  charges?: number;
+}
+export interface EdgeSnapshot {
+  doorOpen?: boolean;
+  doorProgress?: number;
+  used?: boolean;
+  on?: boolean;
+  detected?: boolean;
+  alcove?: ItemRef[];
+}
+export interface MonsterSnapshot {
+  species: string;
+  x: number;
+  y: number;
+  facing: Dir;
+  hpCur: number;
+  state: MonsterState;
+  moveTimer: number;
+  attackTimer: number;
+}
+export interface LevelSnapshot {
+  items: Record<string, ItemRef[]>;
+  edges: Record<string, EdgeSnapshot>;
+  monsters: MonsterSnapshot[];
+}
+export interface WorldSnapshot {
+  current: number;
+  party: { x: number; y: number; facing: Dir };
+  litMsLeft: number;
+  hunger: number;
+  levels: LevelSnapshot[];
+}
+export interface SnapshotDeps {
+  item: (ref: ItemRef) => Item;
+  species: (id: string) => MonsterSpecies;
+}
+
 export class World {
   readonly party: Party;
-  readonly monsters: Monster[];
   readonly projectiles: Projectile[] = [];
+
+  private readonly levels: Level[];
+  private readonly monstersByLevel: Monster[][];
+  private current = 0;
   private litMsLeft = 0;
+  private hunger = 0;
 
   constructor(
-    private readonly level: Level,
+    levels: Level | Level[],
     private readonly bus: EventBus,
     private readonly rng: Rng,
     private readonly roster?: Roster,
   ) {
-    this.party = new Party(level, bus);
-    this.monsters = level.spawns.map(spawnMonster);
+    this.levels = Array.isArray(levels) ? levels : [levels];
+    this.monstersByLevel = this.levels.map((l) => l.spawns.map(spawnMonster));
+    this.party = new Party(this.levels[0]!, bus);
+  }
+
+  /** The level the party is currently on. */
+  get level(): Level {
+    return this.levels[this.current]!;
+  }
+
+  /** Live monsters on the current level. */
+  get monsters(): Monster[] {
+    return this.monstersByLevel[this.current]!;
+  }
+
+  get levelIndex(): number {
+    return this.current;
+  }
+
+  get levelCount(): number {
+    return this.levels.length;
   }
 
   monsterAt(x: number, y: number): Monster | undefined {
@@ -51,6 +115,17 @@ export class World {
   /** Whether a Light spell is currently active (plan §6.3; render hook). */
   isLit(): boolean {
     return this.litMsLeft > 0;
+  }
+
+  /** Move the party to another level (stairs/pit). Autosave hook fires via
+   * the emitted event. In-flight projectiles do not follow. */
+  changeLevel(index: number, pos: Vec2, facing?: Dir): void {
+    if (index < 0 || index >= this.levels.length) return;
+    this.current = index;
+    this.projectiles.length = 0;
+    this.party.enter(this.levels[index]!, pos, facing ?? this.party.getPose().facing);
+    this.bus.emit({ type: 'level/changed', index, name: this.levels[index]!.name });
+    this.msg('system', `You arrive at ${this.levels[index]!.name}.`);
   }
 
   stepForward(): boolean {
@@ -617,6 +692,7 @@ export class World {
     const t = cellTriggerAt(this.level, pos.x, pos.y);
     if (!t) return;
     if (t.text) this.msg('ambient', t.text);
+
     if (t.kind === 'pit') {
       this.bus.emit({ type: 'party/fell' });
       this.msg('damage', 'The floor gives way — you plunge into a pit!');
@@ -625,10 +701,20 @@ export class World {
           this.roster.damage(i, this.rng.dice(1, 6), this.bus);
         }
       }
+      // Fall to the level below (plan M9). Arrival triggers are NOT processed
+      // (you're placed, not stepping in), which also avoids stair loops.
+      if (t.link) this.changeLevel(t.link.level, t.link.pos, t.link.facing);
+      return;
     }
+    if (t.kind === 'stairs' && t.link) {
+      this.changeLevel(t.link.level, t.link.pos, t.link.facing);
+      return;
+    }
+    if (t.kind === 'altar') this.reviveAtAltar();
+
     if (t.onEnter) {
       this.run(t.onEnter);
-      // A teleport/stairs action may have moved us; process the new cell too.
+      // A teleport action may have moved us; process the new cell too.
       const after = this.party.getPose().pos;
       if (after.x !== pos.x || after.y !== pos.y) {
         this.enterCell({ ...after }, hops + 1);
@@ -678,9 +764,216 @@ export class World {
     this.bus.emit({ type: 'door/toggled', x: addr.x, y: addr.y, dir: addr.dir, open });
   }
 
+  // --- Camping (plan §6.4/M9) ------------------------------------------------
+
+  /**
+   * Make camp: rest to recover HP/MP, consuming rations. Can't rest with a
+   * monster hunting you, and there's a chance a wanderer interrupts the rest.
+   * Without food the party rests hungrily, and eventually starves.
+   */
+  camp(): void {
+    if (!this.roster) return;
+    if (this.monsters.some((m) => m.state === 'hunt' || m.state === 'attack')) {
+      this.msg('system', 'It is too dangerous to make camp.');
+      return;
+    }
+    if (this.rng.next() < WANDER_CHANCE) {
+      this.spawnWanderer();
+      this.msg('damage', 'Your rest is interrupted — something creeps out of the dark!');
+      return;
+    }
+    const fed = this.consumeFood();
+    const frac = fed ? 0.6 : 0.2;
+    for (let i = 0; i < this.roster.members.length; i++) {
+      const c = this.roster.members[i]!;
+      if (c.conditions.has('dead')) continue;
+      if (!fed && this.hunger >= STARVE_AT) {
+        this.roster.damage(i, 2, this.bus); // starving
+      } else {
+        this.roster.heal(i, Math.max(1, Math.round(c.hp.max * frac)), this.bus);
+        c.mp.cur = c.mp.max;
+        c.conditions.delete('poisoned');
+      }
+    }
+    this.hunger = fed ? 0 : this.hunger + 1;
+    this.bus.emit({ type: 'party/camped' });
+    this.msg('loot', fed ? 'The party eats, rests, and recovers.' : 'You rest fitfully, hungry.');
+  }
+
+  /** A resurrection altar (plan M10): raise the fallen to half health. */
+  private reviveAtAltar(): void {
+    if (!this.roster) return;
+    let revived = 0;
+    for (let i = 0; i < this.roster.members.length; i++) {
+      const c = this.roster.members[i]!;
+      if (c.hp.cur > 0 && !c.conditions.has('unconscious') && !c.conditions.has('dead')) continue;
+      c.conditions.delete('dead');
+      c.hp.cur = 0; // give heal() room to work and to fire "stirs awake"
+      this.roster.heal(i, Math.max(1, Math.floor(c.hp.max / 2)), this.bus);
+      revived++;
+    }
+    this.msg(
+      'loot',
+      revived > 0
+        ? `The altar's light knits bone and breath — ${revived} rise again.`
+        : 'The altar glows softly, but none here need its blessing.',
+    );
+  }
+
+  private consumeFood(): boolean {
+    for (const c of this.roster!.members) {
+      const idx = c.backpack.findIndex((it) => it?.tpl.food);
+      if (idx < 0) continue;
+      const it = c.backpack[idx]!;
+      if ((it.count ?? 1) > 1) it.count = (it.count ?? 1) - 1;
+      else c.backpack[idx] = null;
+      return true;
+    }
+    return false;
+  }
+
+  private spawnWanderer(): void {
+    const pool = this.level.spawns.map((s) => s.species);
+    if (pool.length === 0) return;
+    const sp = pool[this.rng.int(0, pool.length - 1)]!;
+    const spot = this.findSpawnSpot();
+    if (!spot) return;
+    this.monsters.push(spawnMonster({ pos: spot, facing: 0, species: sp }));
+  }
+
+  private findSpawnSpot(): Vec2 | null {
+    const p = this.party.getPose().pos;
+    const candidates: Vec2[] = [];
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        const d = Math.abs(dx) + Math.abs(dy);
+        if (d < 2 || d > 4) continue;
+        const x = p.x + dx;
+        const y = p.y + dy;
+        if (!isWalkable(this.level, x, y)) continue;
+        if (this.monsterAt(x, y)) continue;
+        candidates.push({ x, y });
+      }
+    }
+    if (candidates.length === 0) return null;
+    return candidates[this.rng.int(0, candidates.length - 1)]!;
+  }
+
+  // --- Save / load snapshot (plan §7/M9) ------------------------------------
+
+  /** A serializable snapshot of all mutable world state. Items/species are
+   * referenced by registry id so the blob stays small; the save layer
+   * rehydrates them. */
+  snapshot(): WorldSnapshot {
+    return {
+      current: this.current,
+      party: { x: this.party.getPose().pos.x, y: this.party.getPose().pos.y, facing: this.party.getPose().facing },
+      litMsLeft: this.litMsLeft,
+      hunger: this.hunger,
+      levels: this.levels.map((level, i) => this.snapshotLevel(level, this.monstersByLevel[i]!)),
+    };
+  }
+
+  private snapshotLevel(level: Level, monsters: Monster[]): LevelSnapshot {
+    const items: Record<string, ItemRef[]> = {};
+    for (let y = 0; y < level.height; y++) {
+      for (let x = 0; x < level.width; x++) {
+        const cell = level.cells[y * level.width + x];
+        if (cell?.items && cell.items.length > 0) items[`${x},${y}`] = cell.items.map(toItemRef);
+      }
+    }
+    const edges: Record<string, EdgeSnapshot> = {};
+    for (const [key, e] of level.edges) {
+      const snap: EdgeSnapshot = {};
+      if (e.door) {
+        snap.doorOpen = e.door.open;
+        snap.doorProgress = e.door.progress;
+      }
+      if (e.interact) {
+        snap.used = e.interact.used ?? false;
+        snap.on = e.interact.on ?? false;
+      }
+      if (e.detected) snap.detected = true;
+      if (e.alcove) snap.alcove = e.alcove.map(toItemRef);
+      edges[key] = snap;
+    }
+    return {
+      items,
+      edges,
+      monsters: monsters
+        .filter((m) => m.state !== 'dead')
+        .map((m) => ({
+          species: m.species.id,
+          x: m.pos.x,
+          y: m.pos.y,
+          facing: m.facing,
+          hpCur: m.hp.cur,
+          state: m.state,
+          moveTimer: m.moveTimer,
+          attackTimer: m.attackTimer,
+        })),
+    };
+  }
+
+  /** Restore mutable world state from a snapshot, using the supplied
+   * rehydration helpers (which own the registries; keeps World data-free). */
+  applySnapshot(snap: WorldSnapshot, deps: SnapshotDeps): void {
+    this.current = Math.max(0, Math.min(snap.current, this.levels.length - 1));
+    this.litMsLeft = snap.litMsLeft;
+    this.hunger = snap.hunger;
+
+    snap.levels.forEach((ls, i) => {
+      const level = this.levels[i];
+      if (!level) return;
+      for (const cell of level.cells) delete cell.items;
+      for (const [key, refs] of Object.entries(ls.items)) {
+        const [xs, ys] = key.split(',');
+        const cell = level.cells[Number(ys) * level.width + Number(xs)];
+        if (cell) cell.items = refs.map(deps.item);
+      }
+      for (const [key, es] of Object.entries(ls.edges)) {
+        const e = level.edges.get(key);
+        if (!e) continue;
+        if (e.door && es.doorOpen !== undefined) {
+          e.door.open = es.doorOpen;
+          e.door.progress = es.doorProgress ?? (es.doorOpen ? 1 : 0);
+          e.blocksMovement = !es.doorOpen;
+        }
+        if (e.interact) {
+          e.interact.used = es.used ?? false;
+          e.interact.on = es.on ?? false;
+        }
+        e.detected = es.detected ?? false;
+        if (es.alcove) e.alcove = es.alcove.map(deps.item);
+      }
+      this.monstersByLevel[i] = ls.monsters.map((ms) => {
+        const m = spawnMonster({ pos: { x: ms.x, y: ms.y }, facing: ms.facing, species: deps.species(ms.species) });
+        m.hp.cur = ms.hpCur;
+        m.state = ms.state;
+        m.moveTimer = ms.moveTimer;
+        m.attackTimer = ms.attackTimer;
+        return m;
+      });
+    });
+
+    this.projectiles.length = 0;
+    this.party.enter(this.levels[this.current]!, { x: snap.party.x, y: snap.party.y }, snap.party.facing);
+  }
+
   private msg(channel: LogChannel, text: string): void {
     this.bus.emit({ type: 'log/message', channel, text });
   }
+}
+
+const WANDER_CHANCE = 0.15;
+const STARVE_AT = 3;
+
+function toItemRef(it: Item): ItemRef {
+  return {
+    id: it.tpl.id,
+    ...(it.count !== undefined ? { count: it.count } : {}),
+    ...(it.charges !== undefined ? { charges: it.charges } : {}),
+  };
 }
 
 /** Cardinal direction from `from` toward `to` (dominant axis). */

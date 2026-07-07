@@ -58,7 +58,9 @@ describe('level 1 is solvable start to finish', () => {
     // into the teleport booth; warp to the exit.
     drive(world, 'FFFFF r FFFFFF r FFFF l u l FFFFFF l F r F');
     expect(world.party.getPose().pos).toEqual({ x: 11, y: 6 });
-    expect(log.some((l) => /escaped the Pillared Hall/i.test(l))).toBe(true);
+    // Reaching the exit reveals the stairs down (parsed here as a single
+    // level, so the stairs link no-ops and the party stays put).
+    expect(log.some((l) => /stair spirals down/i.test(l))).toBe(true);
   });
 
   it('the teleport-booth door stays shut until the button is used', () => {

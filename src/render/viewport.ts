@@ -14,6 +14,7 @@ import type { Item } from '../core/item';
 import type { Monster } from '../core/monster';
 import type { Projectile } from '../core/projectile';
 import { SWEETIE16 } from './palette';
+import { getTileset, type Tileset } from './tilesets';
 import { drawItemIcon } from './itemIcon';
 import { text } from './text';
 import { buildScene, maxLat, ROWS, type WallSlot } from './scene';
@@ -30,11 +31,10 @@ import {
   type SideQuad,
 } from './viewGeometry';
 
-const FRONT_FILL = [SWEETIE16.gray, SWEETIE16.slate, SWEETIE16.ink, SWEETIE16.navy];
-const SIDE_FILL = [SWEETIE16.slate, SWEETIE16.ink, SWEETIE16.navy, SWEETIE16.black];
-const MORTAR = SWEETIE16.black;
-const DOOR_FILL = SWEETIE16.teal;
-const DOOR_TRIM = SWEETIE16.cyan;
+// The active level's tileset, set at the top of each drawViewport() and read
+// by the draw helpers (rendering is single-threaded, so a module-level ref is
+// simpler than threading it through every call).
+let ts: Tileset = getTileset('brick');
 
 interface Pose {
   pos: Vec2;
@@ -57,6 +57,7 @@ export function drawViewport(
 ): void {
   const monsters = opts.monsters ?? [];
   const projectiles = opts.projectiles ?? [];
+  ts = getTileset(level.tileset);
 
   ctx.save();
   ctx.beginPath();
@@ -92,8 +93,8 @@ export function drawViewport(
 
 function drawCeilingFloor(ctx: CanvasRenderingContext2D): void {
   const bottom = CONTENT.y + CONTENT.h;
-  band(ctx, CONTENT.y, HORIZON, [SWEETIE16.black, SWEETIE16.navy, SWEETIE16.ink]);
-  band(ctx, HORIZON, bottom, [SWEETIE16.slate, SWEETIE16.ink, SWEETIE16.black]);
+  band(ctx, CONTENT.y, HORIZON, ts.ceiling);
+  band(ctx, HORIZON, bottom, ts.floor);
 }
 
 function band(ctx: CanvasRenderingContext2D, y0: number, y1: number, colors: string[]): void {
@@ -117,19 +118,19 @@ function drawSlot(
   const items = cellAt(level, slot.cell.x, slot.cell.y)?.items;
   if (items && items.length > 0 && slot.row <= 2) drawFloorItems(ctx, slot.row, slot.lat, items);
 
-  const sideFill = SIDE_FILL[slot.row] ?? SWEETIE16.black;
-  const frontFill = FRONT_FILL[slot.row] ?? SWEETIE16.navy;
+  const sideFill = ts.side[slot.row] ?? SWEETIE16.black;
+  const frontFill = ts.front[slot.row] ?? SWEETIE16.navy;
 
   if (slot.left) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnLeft(facing));
     const q = sideQuad(slot.row, slot.lat, 'left');
-    drawSideFace(ctx, q, e?.kind === 'door' ? DOOR_FILL : sideFill);
+    drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill);
     if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
   }
   if (slot.right) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnRight(facing));
     const q = sideQuad(slot.row, slot.lat, 'right');
-    drawSideFace(ctx, q, e?.kind === 'door' ? DOOR_FILL : sideFill);
+    drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill);
     if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
   }
   if (slot.front) {
@@ -158,7 +159,7 @@ function drawFrontFace(ctx: CanvasRenderingContext2D, r: FrontRect, fill: string
   ctx.fillStyle = fill;
   ctx.fillRect(x0, y0, w, h);
 
-  ctx.fillStyle = MORTAR;
+  ctx.fillStyle = ts.mortar;
   const courses = Math.max(2, Math.round(h / 13));
   const brickW = Math.max(6, w / 3);
   for (let k = 1; k < courses; k++) {
@@ -172,7 +173,7 @@ function drawFrontFace(ctx: CanvasRenderingContext2D, r: FrontRect, fill: string
       ctx.fillRect(Math.round(bx), cy0, 1, cy1 - cy0);
     }
   }
-  ctx.strokeStyle = MORTAR;
+  ctx.strokeStyle = ts.mortar;
   ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
 }
 
@@ -186,7 +187,7 @@ function drawSideFace(ctx: CanvasRenderingContext2D, q: SideQuad, fill: string):
   ctx.fillStyle = fill;
   ctx.fill();
 
-  ctx.strokeStyle = MORTAR;
+  ctx.strokeStyle = ts.mortar;
   ctx.lineWidth = 1;
   ctx.stroke();
 
@@ -207,7 +208,7 @@ function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWa
   // unless Detect Secret has revealed it, which draws a faint dashed hint
   // without giving away exactly how to open it.
   if (edge.door?.secret && progress <= 0.001) {
-    drawFrontFace(ctx, r, FRONT_FILL[row] ?? SWEETIE16.navy);
+    drawFrontFace(ctx, r, ts.front[row] ?? SWEETIE16.navy);
     if (edge.detected) drawDetectedHint(ctx, r);
     return;
   }
@@ -222,16 +223,16 @@ function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWa
   // Portcullis retracts upward: visible panel shrinks from the bottom.
   const bottom = Math.round(y1 - progress * h);
   if (bottom > y0) {
-    ctx.fillStyle = DOOR_FILL;
+    ctx.fillStyle = ts.door;
     ctx.fillRect(x0, y0, w, bottom - y0);
-    ctx.fillStyle = MORTAR;
+    ctx.fillStyle = ts.mortar;
     for (let k = 1; k < 3; k++) ctx.fillRect(Math.round(x0 + (w * k) / 3), y0, 1, bottom - y0);
     ctx.fillRect(x0, Math.round(y0 + (bottom - y0) * 0.5), w, 1);
-    ctx.strokeStyle = DOOR_TRIM;
+    ctx.strokeStyle = ts.doorTrim;
     ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, bottom - y0 - 1);
   }
   // Door frame stays put.
-  ctx.strokeStyle = MORTAR;
+  ctx.strokeStyle = ts.mortar;
   ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
 }
 
@@ -253,7 +254,7 @@ function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | und
     if (edge.interact.kind === 'button') {
       ctx.fillStyle = SWEETIE16.yellow;
       ctx.fillRect(Math.round(at.x) - 3, Math.round(at.y) - 3, 6, 6);
-      ctx.strokeStyle = MORTAR;
+      ctx.strokeStyle = ts.mortar;
       ctx.strokeRect(Math.round(at.x) - 3.5, Math.round(at.y) - 3.5, 6, 6);
     } else {
       ctx.fillStyle = SWEETIE16.orange;
@@ -310,6 +311,12 @@ function drawFloorMarker(ctx: CanvasRenderingContext2D, kind: string, row: numbe
         SWEETIE16.teal,
         SWEETIE16.cyan,
       );
+      break;
+    case 'altar':
+      // A glowing plus.
+      ctx.fillStyle = SWEETIE16.yellow;
+      ctx.fillRect(Math.round(c.x - 1), Math.round(c.y - r), 3, Math.round(r * 2));
+      ctx.fillRect(Math.round(c.x - r), Math.round(c.y - 1), Math.round(r * 2), 3);
       break;
     case 'stairs':
       ctx.fillStyle = SWEETIE16.lime;
