@@ -1,0 +1,529 @@
+<style>
+  :root {
+    --bg: #14151d;
+    --panel: #1b1d29;
+    --panel2: #22253a;
+    --border: #313650;
+    --border-soft: #262a3e;
+    --ink: #e7ebf3;
+    --muted: #98a3ba;
+    --faint: #6c7690;
+    --gold: #ffcd75;
+    --gold-text: #ffcd75;
+    --cyan: #73eff7;
+    --lime: #a7f070;
+    --warn: #ef7d57;
+    --link: #73eff7;
+    --shadow: 0 1px 0 rgba(255,255,255,.03), 0 10px 30px -18px rgba(0,0,0,.8);
+    --font-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --maxw: 780px;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #e9edf4; --panel: #ffffff; --panel2: #f2f5fb; --border: #ccd4e2;
+      --border-soft: #dbe1ec; --ink: #1a1c2c; --muted: #4a556b; --faint: #7d879a;
+      --gold: #e0a83a; --gold-text: #8a5e0f; --cyan: #1e6f7a; --link: #1a6d78;
+      --lime: #3d7a2a; --warn: #c0532c;
+      --shadow: 0 1px 0 rgba(255,255,255,.6), 0 12px 30px -20px rgba(20,30,60,.35);
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #e9edf4; --panel: #ffffff; --panel2: #f2f5fb; --border: #ccd4e2;
+    --border-soft: #dbe1ec; --ink: #1a1c2c; --muted: #4a556b; --faint: #7d879a;
+    --gold: #e0a83a; --gold-text: #8a5e0f; --cyan: #1e6f7a; --link: #1a6d78;
+    --lime: #3d7a2a; --warn: #c0532c;
+    --shadow: 0 1px 0 rgba(255,255,255,.6), 0 12px 30px -20px rgba(20,30,60,.35);
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14151d; --panel: #1b1d29; --panel2: #22253a; --border: #313650;
+    --border-soft: #262a3e; --ink: #e7ebf3; --muted: #98a3ba; --faint: #6c7690;
+    --gold: #ffcd75; --gold-text: #ffcd75; --cyan: #73eff7; --link: #73eff7;
+    --lime: #a7f070; --warn: #ef7d57;
+    --shadow: 0 1px 0 rgba(255,255,255,.03), 0 10px 30px -18px rgba(0,0,0,.8);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); font-size: 16px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px 96px; }
+
+  a { color: var(--link); text-decoration: none; border-bottom: 1px solid color-mix(in oklab, var(--link) 40%, transparent); }
+  a:hover { border-bottom-color: var(--link); }
+  a:focus-visible, .chip:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  code, kbd { font-family: var(--font-mono); font-size: .88em; }
+  :not(pre) > code {
+    background: var(--panel2); border: 1px solid var(--border-soft);
+    padding: .08em .38em; border-radius: 2px; color: var(--ink); white-space: nowrap;
+  }
+  kbd {
+    background: var(--panel2); border: 1px solid var(--border); border-bottom-width: 2px;
+    border-radius: 3px; padding: .05em .4em; font-size: .82em; color: var(--ink);
+  }
+
+  /* ---- Masthead ---- */
+  header.mast {
+    position: relative; overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(115,239,247,.028) 3px 4px),
+      linear-gradient(180deg, var(--panel2), var(--panel));
+  }
+  .mast-inner { max-width: var(--maxw); margin: 0 auto; padding: 40px 20px 30px; }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--gold-text); margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--font-mono); font-weight: 700; letter-spacing: -.01em;
+    font-size: clamp(2rem, 6vw, 3rem); line-height: 1.02; margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  h1 .cursor { color: var(--gold); }
+  .dek { color: var(--muted); font-size: 1.04rem; max-width: 60ch; margin: 0 0 20px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+  .meta .tag {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .04em;
+    padding: 5px 9px; border: 1px solid var(--border); border-radius: 2px;
+    background: var(--panel); color: var(--muted);
+  }
+
+  /* ---- Sections ---- */
+  section { padding-top: 44px; scroll-margin-top: 20px; }
+  h2 {
+    font-family: var(--font-mono); font-size: 1.28rem; margin: 0 0 6px;
+    display: flex; align-items: baseline; gap: 12px; text-wrap: balance;
+  }
+  h2 .n { color: var(--gold); font-size: .82rem; letter-spacing: .08em; }
+  h2 + .rule { height: 2px; background:
+    linear-gradient(90deg, var(--gold), transparent 62%); margin: 0 0 18px; border: 0; }
+  h3 { font-family: var(--font-mono); font-size: 1rem; margin: 26px 0 6px; color: var(--ink); }
+  p { margin: 0 0 14px; }
+  ul, ol { margin: 0 0 14px; padding-left: 1.25em; }
+  li { margin: 5px 0; }
+  li::marker { color: var(--faint); }
+  strong { color: var(--ink); font-weight: 650; }
+  .lead { max-width: 65ch; }
+
+  /* ---- Callout ---- */
+  .note {
+    border: 1px solid var(--border); border-left: 3px solid var(--warn);
+    background: color-mix(in oklab, var(--warn) 9%, var(--panel));
+    padding: 16px 18px; border-radius: 3px; margin: 22px 0; box-shadow: var(--shadow);
+  }
+  .note .lbl {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--warn); display: block; margin-bottom: 6px;
+  }
+  .note p:last-child { margin: 0; }
+  .note p { font-size: .95rem; color: var(--muted); }
+
+  /* ---- Tables ---- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 3px; margin: 6px 0 20px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); background: var(--panel2); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: color-mix(in oklab, var(--gold) 6%, transparent); }
+  td.num, th.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  td .dim { color: var(--faint); }
+
+  /* ---- Palette swatches ---- */
+  .palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 6px 0 20px; }
+  .sw { border: 1px solid var(--border-soft); border-radius: 2px; overflow: hidden; background: var(--panel); }
+  .sw .chip { height: 40px; }
+  .sw .cap { padding: 6px 8px; font-family: var(--font-mono); font-size: .68rem; line-height: 1.35; }
+  .sw .cap b { display: block; color: var(--ink); font-weight: 600; }
+  .sw .cap span { color: var(--faint); }
+  @media (max-width: 560px) { .palette { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ---- Frustum diagram ---- */
+  .figure {
+    display: grid; grid-template-columns: 1.15fr .85fr; gap: 22px; align-items: center;
+    border: 1px solid var(--border); border-radius: 3px; padding: 22px;
+    background:
+      radial-gradient(120% 100% at 50% 0%, var(--panel2), var(--panel));
+    box-shadow: var(--shadow); margin: 6px 0 8px;
+  }
+  .stage {
+    position: relative; height: 250px;
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--cyan) 5%, transparent), transparent 55%),
+      var(--bg);
+    border: 1px solid var(--border-soft); border-radius: 2px; overflow: hidden;
+  }
+  .horizon { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed color-mix(in oklab, var(--cyan) 45%, transparent); }
+  .floorlabel { position: absolute; right: 6px; top: calc(50% + 4px); font-family: var(--font-mono); font-size: .6rem; color: var(--faint); letter-spacing: .08em; }
+  .face {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    image-rendering: pixelated;
+  }
+  .face .lab {
+    position: absolute; top: -1px; left: 50%; transform: translate(-50%, -120%);
+    font-family: var(--font-mono); font-size: .58rem; white-space: nowrap; color: var(--muted);
+  }
+  .legend { font-size: .86rem; }
+  .legend h4 { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-text); margin: 0 0 10px; }
+  .legend ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; }
+  .legend li { display: flex; align-items: center; gap: 10px; margin: 0; }
+  .legend .key { width: 14px; height: 14px; flex: none; border: 1px solid rgba(255,255,255,.15); }
+  .legend .sz { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .legend .who { color: var(--faint); }
+  .caption { font-size: .8rem; color: var(--faint); font-family: var(--font-mono); margin: 12px 0 20px; }
+  @media (max-width: 620px) { .figure { grid-template-columns: 1fr; } .stage { height: 220px; } }
+
+  /* ---- Code blocks ---- */
+  pre {
+    margin: 6px 0 20px; padding: 14px 16px; overflow-x: auto;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
+  }
+  pre code { font-size: .82rem; line-height: 1.6; color: var(--ink); white-space: pre; }
+  .c-key { color: var(--gold); } .c-str { color: var(--lime); } .c-com { color: var(--faint); } .c-num { color: var(--cyan); }
+
+  /* ---- Feature grid ---- */
+  .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 6px 0 18px; }
+  .card { border: 1px solid var(--border); border-radius: 3px; padding: 14px 16px; background: var(--panel); }
+  .card h4 { font-family: var(--font-mono); font-size: .82rem; margin: 0 0 6px; color: var(--gold-text); letter-spacing: .04em; }
+  .card p { font-size: .88rem; color: var(--muted); margin: 0; }
+  @media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+
+  /* ---- TOC ---- */
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 4px; }
+  nav.toc a {
+    font-family: var(--font-mono); font-size: .74rem; letter-spacing: .02em;
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 2px;
+    background: var(--panel); color: var(--muted); border-bottom: 1px solid var(--border);
+  }
+  nav.toc a:hover { color: var(--ink); border-color: var(--gold); }
+
+  /* ---- Checklist ---- */
+  ol.check { counter-reset: step; list-style: none; padding: 0; }
+  ol.check li {
+    position: relative; padding-left: 40px; margin: 10px 0; min-height: 26px;
+  }
+  ol.check li::before {
+    counter-increment: step; content: counter(step, decimal-leading-zero);
+    position: absolute; left: 0; top: 1px;
+    font-family: var(--font-mono); font-size: .72rem; color: var(--gold);
+    border: 1px solid var(--border); background: var(--panel2);
+    width: 26px; height: 22px; display: grid; place-items: center; border-radius: 2px;
+  }
+
+  footer { margin-top: 60px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--faint); font-size: .82rem; font-family: var(--font-mono); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="mast">
+  <div class="mast-inner">
+    <p class="eyebrow">Dungeon Engine · Art Guide</p>
+    <h1>Creating Sprites<span class="cursor">_</span></h1>
+    <p class="dek">Exact sizes, wall-texture craft, and animation for the 640×400,
+      sweetie-16, <em>Eye of the Beholder</em>-style first-person renderer.</p>
+    <div class="meta">
+      <span class="tag">640 × 400 canvas</span>
+      <span class="tag">integer-scaled</span>
+      <span class="tag">no anti-aliasing</span>
+      <span class="tag">16 colours</span>
+      <span class="tag">PNG + JSON atlas</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Sections">
+    <a href="#sizes">Size cheat-sheet</a>
+    <a href="#rules">Pixel rules</a>
+    <a href="#palette">Palette</a>
+    <a href="#walls">Wall textures</a>
+    <a href="#monsters">Monsters</a>
+    <a href="#more">Items &amp; UI</a>
+    <a href="#anim">Animation</a>
+    <a href="#files">Files</a>
+    <a href="#checklist">Checklist</a>
+  </nav>
+
+  <div class="note">
+    <span class="lbl">Read this first — current status</span>
+    <p>Today the engine draws walls, monsters, items, and UI as <strong>procedural
+      programmer-art</strong> (shaded polygons + glyphs), not PNGs. The sprite pipeline
+      (<code>src/render/sprites.ts</code>, an atlas loader) is the planned hook and isn't
+      wired yet. This guide tells you <strong>exactly what to draw</strong> so art drops in
+      cleanly when that loader lands — every number is computed from the engine's real
+      projection constants, so art authored to these sizes renders 1:1 with no scaling mush.</p>
+  </div>
+
+  <section id="sizes">
+    <h2><span class="n">A</span> Size cheat-sheet</h2>
+    <hr class="rule" />
+    <p class="lead">Everything is drawn into a fixed <strong>640 × 400</strong> backbuffer that
+      is then integer-scaled (×2, ×3, …) with smoothing off. Design at 1×: one art pixel =
+      one game pixel.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Asset</th><th class="num">Size(s)</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Wall — front face</strong></td><td class="num">300 · 100 · 60 · 44</td><td>Square, per depth row 0→3. Row 0 = adjacent wall, fills the view</td></tr>
+          <tr><td><strong>Wall — side face</strong></td><td class="num">682→300 · 300→100<br>100→60 · 60→44</td><td>Trapezoids (near→far height). Draw the <em>right</em>; left is mirrored</td></tr>
+          <tr><td><strong>Monster billboard</strong></td><td class="num">128 · 82 · 52 · 36</td><td>Height by row; width ≈ 0.55 × height. Transparent bg</td></tr>
+          <tr><td><strong>Item icon</strong></td><td class="num">16 × 16</td><td>Transparent. Also drawn ~14/11/8 on the floor</td></tr>
+          <tr><td><strong>Character portrait</strong></td><td class="num">24 × 24</td><td>Sits in a 26px card box; dims when downed</td></tr>
+          <tr><td><strong>Projectile</strong></td><td class="num">11 · 8 · 6 · 4</td><td>By row. Dagger, bolt, sling stone</td></tr>
+          <tr><td><strong>UI chrome</strong></td><td class="num">9-slice, ~3px</td><td>Pane frames &amp; borders</td></tr>
+          <tr><td><strong>Viewport pane (the 3D view)</strong></td><td class="num">440 × 290</td><td>Content well ≈ 430 × 280 — where walls &amp; monsters draw</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="rules">
+    <h2><span class="n">B</span> Pixel-art rules — non-negotiable</h2>
+    <hr class="rule" />
+    <div class="cards">
+      <div class="card"><h4>Work at 1×</h4><p>The backbuffer scales up as a whole, so a 16px icon is genuinely 16 pixels. Never pre-scale your art.</p></div>
+      <div class="card"><h4>No anti-aliasing</h4><p><code>imageSmoothingEnabled = false</code>. Hard 1px edges and dithering — never soft gradients.</p></div>
+      <div class="card"><h4>Stay in palette</h4><p>The whole game shares one 16-colour palette (below) so nothing clashes.</p></div>
+      <div class="card"><h4>Alpha where it counts</h4><p>Monsters, items, and icons need transparent backgrounds. Walls are opaque solid fills.</p></div>
+      <div class="card"><h4>One light source</h4><p>Top-left is the convention. Keep it consistent across every sprite.</p></div>
+      <div class="card"><h4>Export</h4><p>PNG, RGBA or indexed+alpha. Aseprite, Piskel, or GIMP all work.</p></div>
+    </div>
+  </section>
+
+  <section id="palette">
+    <h2><span class="n">C</span> The palette — sweetie-16</h2>
+    <hr class="rule" />
+    <p class="lead">Load these 16 colours in your editor and paint within them.
+      <strong>Depth fog uses the palette, not alpha</strong>: near walls lighter (gray/slate),
+      far walls darker (ink/navy).</p>
+    <div class="palette" id="palette"></div>
+  </section>
+
+  <section id="walls">
+    <h2><span class="n">D</span> Wall textures — the hard part</h2>
+    <hr class="rule" />
+    <p class="lead">There is <strong>no raycasting and no live texture-warping</strong>. Like
+      <em>Eye of the Beholder</em>, the view is a painter's stack of pre-drawn, already-in-
+      perspective sprites — one per frustum slot. The camera sees a 4-row-deep trapezoid of
+      cells; each has a flat <strong>front face</strong> and two receding <strong>side faces</strong>.
+      Your job is to draw them already foreshortened to fit these rectangles:</p>
+
+    <div class="figure">
+      <div class="stage" id="stage" aria-hidden="true">
+        <div class="horizon"></div>
+        <span class="floorlabel">horizon · y≈134</span>
+      </div>
+      <div class="legend">
+        <h4>Front faces (square)</h4>
+        <ul id="facelegend"></ul>
+      </div>
+    </div>
+    <p class="caption">Front faces to scale (×0.55). Off-centre cells reuse the same sprite, shifted sideways — one front sprite per row, not per column.</p>
+
+    <h3>Side faces are trapezoids</h3>
+    <p>Sides recede toward the vanishing point, so they're tall on the near edge and short on
+      the far edge: <code>682→300</code>, <code>300→100</code>, <code>100→60</code>,
+      <code>60→44</code> (rows 0–3). Author only the right side — the loader mirrors it left.
+      A full brick set is only <strong>~7 sprites</strong>: 3–4 front tiles + 3–4 side trapezoids.</p>
+
+    <h3>Making them look right</h3>
+    <ol>
+      <li><strong>Courses must converge.</strong> On a side trapezoid, angle the brick courses
+        toward screen-centre (y≈134) — shorter and closer together toward the far edge. Parallel
+        courses read as a flat billboard, not a receding wall.</li>
+      <li><strong>Tile seamlessly at cell edges.</strong> A front tile's right edge must line up
+        with the next cell's left edge, or corridors show seams. Use a running-bond that
+        continues across the boundary.</li>
+      <li><strong>Match texel density across depth.</strong> A brick should be the same
+        <em>fraction</em> of the wall near and far, so both read as the same stone (~5 courses on
+        the 100px tile → ~3 on the 60px tile).</li>
+      <li><strong>Bake in the fog.</strong> Paint each row a step darker (gray → slate → ink →
+        navy). The darkening is what sells distance.</li>
+      <li><strong>Crisp corners.</strong> A 1px darker seam where front meets side reads as a
+        wall corner.</li>
+    </ol>
+    <p>These swap into <code>drawFrontFace()</code> / <code>drawSideFace()</code> in
+      <code>viewport.ts</code>; the exact rectangles come from <code>frontRect()</code> /
+      <code>sideQuad()</code> in <code>viewGeometry.ts</code>. Doors reuse the front-face slot.</p>
+
+    <div class="note" style="border-left-color: var(--cyan); background: color-mix(in oklab, var(--cyan) 8%, var(--panel));">
+      <span class="lbl" style="color: var(--cyan);">Simpler alternative</span>
+      <p>Too much to hand-draw? Author <strong>one square 64×64 tile per wall style</strong> and
+        add a small code change to scale it into each front rect and skew it into each side quad.
+        You lose foreshortening fidelity but draw far fewer sprites — this path needs an engine tweak.</p>
+    </div>
+  </section>
+
+  <section id="monsters">
+    <h2><span class="n">E</span> Monsters &amp; billboards</h2>
+    <hr class="rule" />
+    <p class="lead">Monsters are billboards — flat sprites standing on the cell floor, scaled by
+      distance. Transparent background, <strong>anchored at the feet</strong> (bottom-centre sits
+      on the floor).</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Depth row</th><th class="num">Height × Width</th><th>Seen when</th></tr></thead>
+        <tbody>
+          <tr><td class="num">0</td><td class="num">128 × 70</td><td>Adjacent — right in your face</td></tr>
+          <tr><td class="num">1</td><td class="num">82 × 45</td><td>One cell away</td></tr>
+          <tr><td class="num">2</td><td class="num">52 × 29</td><td>Two cells away</td></tr>
+          <tr><td class="num">3</td><td class="num">36 × 20</td><td>Three cells away</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Supply either <strong>one large sprite (~128 tall) downscaled</strong> by the engine
+      (simplest, slightly soft) or <strong>three crisp scale tiers</strong> (~82 / 52 / 36 —
+      what the design targets). Author <strong>front / side / back</strong> poses; the engine
+      picks one from the monster's facing. Add an idle bob and, optionally, a 2-frame walk and
+      attack. The red hurt-flash is done in code — no "hurt" frame needed. Drawn by
+      <code>drawMonster()</code>.</p>
+  </section>
+
+  <section id="more">
+    <h2><span class="n">F</span> Items · portraits · projectiles · UI</h2>
+    <hr class="rule" />
+    <div class="cards">
+      <div class="card"><h4>Item icons — 16×16</h4><p>Transparent. Used in hand slots, the inventory grid, and on the floor (auto-scaled to ~14/11/8). Keep the silhouette readable at 8px. <code>itemIcon.ts</code>.</p></div>
+      <div class="card"><h4>Portraits — 24×24</h4><p>Transparent, in a 26px card box. Design them to gray out gracefully; the engine dims downed characters. <code>partyPanel.ts</code>.</p></div>
+      <div class="card"><h4>Projectiles — 4–11px</h4><p>Tiny by row (11/8/6/4). Dagger, magic bolt, sling stone. Transparent. <code>drawProjectile()</code>.</p></div>
+      <div class="card"><h4>UI chrome — 9-slice</h4><p>Pane frames use a ~3px stone border. A 24×24 frame with 3px slices replaces the procedural bevel in <code>chrome.ts</code>.</p></div>
+    </div>
+  </section>
+
+  <section id="anim">
+    <h2><span class="n">G</span> Animated sprites — yes</h2>
+    <hr class="rule" />
+    <p class="lead">Fully supported. Rendering runs every frame (~60fps) <strong>independently of
+      the 100ms simulation tick</strong>, so animation is smooth and timed in wall-clock
+      milliseconds.</p>
+    <h3>Authoring</h3>
+    <ul>
+      <li>Lay frames out as a <strong>horizontal strip</strong> (frame 0, 1, 2… left to right), each frame the tier size — a 2-frame 82px walk is a <code>164 × 82</code> strip.</li>
+      <li>Keep counts small: <strong>2–4 frames</strong>. It keeps the atlas tiny and reads authentically retro.</li>
+      <li>Timing: idle/walk <strong>~150–250 ms/frame</strong>; attack a snappy 2-frame at ~80–120 ms.</li>
+    </ul>
+    <h3>Advancing frames</h3>
+    <pre><code><span class="c-com">// pick a frame from wall-clock time, in the draw call</span>
+<span class="c-key">const</span> frame = Math.floor(performance.now() / <span class="c-num">200</span>) % FRAME_COUNT; <span class="c-com">// 200ms/frame</span>
+
+<span class="c-com">// state-driven: branch on the AI state the monster already sets</span>
+<span class="c-key">const</span> clip = monster.state === <span class="c-str">'attack'</span> ? attackClip : walkClip;</code></pre>
+    <h3>What animates</h3>
+    <ul>
+      <li><strong>Monsters</strong> — idle bob, walk, attack (frame sheets).</li>
+      <li><strong>Doors</strong> — slide open/closed; already animated via <code>door.progress</code>, so a sprite door samples frames by progress.</li>
+      <li><strong>Projectiles</strong> — hop cell-to-cell (<code>hopMs</code>); add a spin if you like.</li>
+      <li><strong>Torches, water, pit shimmer</strong> — decorative 2–4 frame loopers.</li>
+      <li><strong>Spell effects</strong> — short one-shot strips, played then discarded.</li>
+    </ul>
+    <p>Flash/tint overlays (hurt, heal, card damage-flash) are done in code — don't author frames for those.</p>
+  </section>
+
+  <section id="files">
+    <h2><span class="n">H</span> Files &amp; atlas</h2>
+    <hr class="rule" />
+    <p class="lead">Put source sheets in <code>assets/</code> (<code>walls/</code>,
+      <code>monsters/</code>, <code>items/</code>, <code>ui/</code>). Export each sheet as one
+      PNG plus a JSON atlas mapping names to rectangles.</p>
+    <pre><code>{
+  <span class="c-str">"brick_front_1"</span>: { <span class="c-key">"x"</span>: <span class="c-num">0</span>,   <span class="c-key">"y"</span>: <span class="c-num">0</span>, <span class="c-key">"w"</span>: <span class="c-num">100</span>, <span class="c-key">"h"</span>: <span class="c-num">100</span> },
+  <span class="c-str">"brick_side_1"</span>:  { <span class="c-key">"x"</span>: <span class="c-num">100</span>, <span class="c-key">"y"</span>: <span class="c-num">0</span>, <span class="c-key">"w"</span>: <span class="c-num">100</span>, <span class="c-key">"h"</span>: <span class="c-num">100</span> },
+  <span class="c-str">"skeleton_walk"</span>: { <span class="c-key">"x"</span>: <span class="c-num">0</span>, <span class="c-key">"y"</span>: <span class="c-num">0</span>, <span class="c-key">"w"</span>: <span class="c-num">164</span>, <span class="c-key">"h"</span>: <span class="c-num">82</span>, <span class="c-key">"frames"</span>: <span class="c-num">2</span>, <span class="c-key">"ms"</span>: <span class="c-num">200</span> }
+}</code></pre>
+    <p><strong>Naming:</strong> <code>&lt;tileset&gt;_&lt;face&gt;_&lt;row&gt;</code> for walls
+      (<code>brick_front_1</code>, <code>crypt_side_2</code>),
+      <code>&lt;species&gt;_&lt;pose&gt;_&lt;anim&gt;</code> for monsters, <code>&lt;id&gt;</code>
+      for items. The loader awaits the PNGs, slices per the JSON, mirrors right→left side walls,
+      and hands named sub-images to the draw functions.</p>
+  </section>
+
+  <section id="checklist">
+    <h2><span class="n">I</span> Workflow checklist</h2>
+    <hr class="rule" />
+    <ol class="check">
+      <li>Load the <strong>sweetie-16 palette</strong>; set canvas to the target size; turn <strong>off</strong> anti-aliasing.</li>
+      <li>Walls: draw the <strong>front</strong> tiles (300/100/60/44), then the <strong>right side</strong> trapezoids.</li>
+      <li>Verify courses converge and front tiles seam cleanly at cell edges.</li>
+      <li>Darken each depth row a step for fog.</li>
+      <li>Monsters/items: transparent backgrounds, tier sizes, anchored at the feet (monsters) or centred (items).</li>
+      <li>Animations: horizontal strips, 2–4 frames; note ms/frame in the atlas.</li>
+      <li>Export <strong>PNG + JSON</strong> into <code>assets/</code>; name per section H.</li>
+      <li>Drop them in when the atlas loader lands — the draw functions are already sized to your art.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Dungeon Engine — art reference · sizes derived from <code>viewGeometry.ts</code> ·
+    keep the palette tight and the edges hard.
+  </footer>
+</div>
+
+<script>
+  (function () {
+    // sweetie-16
+    var PAL = [
+      ['black','#1a1c2c'],['purple','#5d275d'],['red','#b13e53'],['orange','#ef7d57'],
+      ['yellow','#ffcd75'],['lime','#a7f070'],['green','#38b764'],['teal','#257179'],
+      ['navy','#29366f'],['blue','#3b5dc9'],['azure','#41a6f6'],['cyan','#73eff7'],
+      ['white','#f4f4f4'],['gray','#94b0c2'],['slate','#566c86'],['ink','#333c57']
+    ];
+    var pg = document.getElementById('palette');
+    PAL.forEach(function (c) {
+      var el = document.createElement('div');
+      el.className = 'sw';
+      el.innerHTML = '<div class="chip" style="background:' + c[1] + '"></div>' +
+        '<div class="cap"><b>' + c[0] + '</b><span>' + c[1] + '</span></div>';
+      pg.appendChild(el);
+    });
+
+    // Frustum front faces, to scale (real engine sizes: 300/100/60/44).
+    var FACE = 0.55;
+    var rows = [
+      { size: 300, color: '#94b0c2', row: 0, who: 'adjacent' },
+      { size: 100, color: '#566c86', row: 1, who: 'one cell away' },
+      { size: 60,  color: '#333c57', row: 2, who: 'two cells away' },
+      { size: 44,  color: '#29366f', row: 3, who: 'the far wall' }
+    ];
+    var stage = document.getElementById('stage');
+    var legend = document.getElementById('facelegend');
+    rows.forEach(function (r) {
+      var s = Math.round(r.size * FACE);
+      var d = document.createElement('div');
+      d.className = 'face';
+      d.style.width = s + 'px';
+      d.style.height = s + 'px';
+      d.style.background = r.color;
+      d.style.border = '1px solid rgba(0,0,0,.45)';
+      d.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,.06)';
+      d.style.zIndex = String(4 - r.row);
+      if (r.row > 0) {
+        var lab = document.createElement('span');
+        lab.className = 'lab';
+        lab.textContent = r.size + '²';
+        lab.style.color = 'var(--muted)';
+        d.appendChild(lab);
+      }
+      stage.appendChild(d);
+
+      var li = document.createElement('li');
+      li.innerHTML = '<span class="key" style="background:' + r.color + '"></span>' +
+        '<span class="sz">' + r.size + ' × ' + r.size + '</span>' +
+        '<span class="who">row ' + r.row + ' — ' + r.who + '</span>';
+      legend.appendChild(li);
+    });
+  })();
+</script>

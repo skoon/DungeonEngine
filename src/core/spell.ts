@@ -4,7 +4,7 @@
  * so core stays data-agnostic; data/spells.ts + data/party.ts assign them.
  */
 
-export type SpellKind = 'projectile' | 'cone' | 'buff' | 'heal' | 'light' | 'detect';
+export type SpellKind = 'projectile' | 'cone' | 'buff' | 'heal' | 'light' | 'detect' | 'townPortal';
 
 export interface SpellDef {
   id: string;

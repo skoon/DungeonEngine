@@ -48,8 +48,8 @@ describe('monster registry (M10)', () => {
 });
 
 describe('dungeon maps', () => {
-  it('both floors parse without error', () => {
-    expect(dungeonMaps).toHaveLength(2);
+  it('all maps parse without error', () => {
+    expect(dungeonMaps).toHaveLength(3); // two dungeon floors + the Town Hub
     for (const m of dungeonMaps) expect(() => parseMap(m)).not.toThrow();
   });
 });

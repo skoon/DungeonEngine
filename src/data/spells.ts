@@ -30,6 +30,10 @@ export const SPELLS: Record<string, SpellDef> = {
     id: 'detect_secret', name: 'Detect Secret', mpCost: 3, castMs: 400,
     kind: 'detect', detectRadius: 3,
   },
+  town_portal: {
+    id: 'town_portal', name: 'Town Portal', mpCost: 6, castMs: 1200,
+    kind: 'townPortal',
+  },
 };
 
 export function spell(id: string): SpellDef {

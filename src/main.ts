@@ -6,7 +6,7 @@ import { Roster } from './core/roster';
 import { cellAt } from './core/dungeon';
 import type { Item } from './core/item';
 import { type InvContext, pickUp, placeInto } from './core/inventory';
-import { dungeonMaps } from './data/maps';
+import { dungeonMaps, TOWN_INDEX, TOWN_ENTRANCE } from './data/maps';
 import { defaultParty } from './data/party';
 import { hasSave, loadFromStorage, saveToStorage } from './save/save';
 import { Screen } from './render/screen';
@@ -18,6 +18,13 @@ import { LogPanel } from './render/logPanel';
 import { buildPlacements, drawInventory, hitPlacement, navigate } from './render/inventoryOverlay';
 import { buildSpellEntries, drawSpellbook, hitEntry, navigateList, type SpellEntry } from './render/spellOverlay';
 import { buildTitleItems, drawTitle, hitTitle, type TitleItem } from './render/titleScreen';
+import { buildControls, drawCreate, hitControl, type Control } from './render/createScreen';
+import {
+  buildTownRows, drawTownOverlay, hitTownRow, type TownMode, type TownRow,
+} from './render/townOverlay';
+import {
+  CLASS_ORDER, type CreationMember, buildParty, createMember, defaultCreationParty, randomName, rollStats,
+} from './data/creation';
 import { drawHeaderButtons, drawMovePad } from './render/controls';
 import {
   CLOSE_BUTTON, LOG, MOVE_BUTTONS, PARTY, PARTY_CARDS, UI_BUTTONS, VIEWPORT,
@@ -36,6 +43,7 @@ const levels = dungeonMaps.map((m) => parseMap(m));
 const roster = new Roster(defaultParty());
 const rng = new Rng(Date.now() >>> 0);
 const world = new World(levels, bus, rng, roster);
+world.setTown(TOWN_INDEX, TOWN_ENTRANCE.pos, TOWN_ENTRANCE.facing); // Town Portal destination
 const logPanel = new LogPanel(bus);
 const audio = new GameAudio();
 audio.attach(bus);
@@ -56,19 +64,143 @@ const inv: { open: boolean; cursor: number; held: Item | null; ctx: InvContext }
 const spellbook: { open: boolean; cursor: number; entries: SpellEntry[] } = {
   open: false, cursor: 0, entries: [],
 };
+// Town-service overlay (plan M-DR5): opens on the raise / recruit town cells.
+const townUi: { open: boolean; mode: TownMode; cursor: number; rows: TownRow[]; candidate: CreationMember | null } = {
+  open: false, mode: 'raise', cursor: 0, rows: [], candidate: null,
+};
 let swapSel: number | null = null; // formation-swap: first-picked card
 let mouse: { x: number; y: number } | null = null;
 
-// Title screen gates the start of play.
-let mode: 'title' | 'play' = 'title';
+// Title screen gates the start of play; New Game routes through creation.
+let mode: 'title' | 'create' | 'play' = 'title';
 const title: { cursor: number; items: TitleItem[] } = { cursor: 0, items: buildTitleItems(hasSave()) };
+const creation: { members: CreationMember[]; focus: number; controls: Control[] } = {
+  members: [], focus: 0, controls: buildControls(),
+};
 
 function chooseTitle(id: 'new' | 'continue'): void {
-  if (id === 'continue') loadGame(); // else start on the fresh new-game world
+  if (id === 'continue') {
+    loadGame();
+    mode = 'play';
+  } else {
+    creation.members = defaultCreationParty(rng);
+    creation.focus = 0;
+    mode = 'create';
+  }
+}
+
+function cycleClass(member: number, dir: number): void {
+  const m = creation.members[member];
+  if (!m) return;
+  const i = CLASS_ORDER.indexOf(m.clazz);
+  m.clazz = CLASS_ORDER[(i + dir + CLASS_ORDER.length) % CLASS_ORDER.length]!;
+}
+function reroll(member: number): void {
+  const m = creation.members[member];
+  if (m) m.stats = rollStats(rng);
+}
+function beginParty(): void {
+  buildParty(creation.members).forEach((c, i) => {
+    roster.members[i] = c;
+    roster.hurt[i] = 0;
+    roster.healFlash[i] = 0;
+  });
   mode = 'play';
 }
 
-const anyMenuOpen = (): boolean => inv.open || spellbook.open;
+function handleCreateKey(ev: KeyboardEvent, k: string): void {
+  const len = creation.controls.length;
+  const c = creation.controls[creation.focus]!;
+  ev.preventDefault();
+
+  if (k === 'enter') {
+    if (c.kind === 'begin') beginParty();
+    else if (c.kind === 'reroll') reroll(c.member);
+    else if (c.kind === 'rerollAll') creation.members.forEach((_, i) => reroll(i));
+    else creation.focus = (creation.focus + 1) % len; // name/class -> advance
+    return;
+  }
+  if (k === 'tab' || k === 'arrowdown') { creation.focus = (creation.focus + 1) % len; return; }
+  if (k === 'arrowup') { creation.focus = (creation.focus - 1 + len) % len; return; }
+  if (c.kind === 'class' && (k === 'arrowleft' || k === 'arrowright')) {
+    cycleClass(c.member, k === 'arrowleft' ? -1 : 1);
+    return;
+  }
+  if (c.kind === 'name') {
+    const m = creation.members[c.member]!;
+    if (k === 'backspace') m.name = m.name.slice(0, -1);
+    else if (ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey && /[A-Za-z '-]/.test(ev.key) && m.name.length < 12) {
+      m.name += ev.key;
+    }
+  }
+}
+
+const anyMenuOpen = (): boolean => inv.open || spellbook.open || townUi.open;
+
+// --- Town Hub services (plan M-DR5) ----------------------------------------
+bus.on('town/service', (e) => {
+  if (e.service === 'raise' || e.service === 'recruit') openTown(e.service);
+});
+
+function rollCandidate(): CreationMember {
+  const taken = roster.members.map((m) => m.name);
+  return { name: randomName(rng, taken), clazz: CLASS_ORDER[rng.int(0, 3)]!, stats: rollStats(rng) };
+}
+function rebuildTownRows(): void {
+  townUi.rows = buildTownRows(townUi.mode, roster);
+  if (townUi.cursor >= townUi.rows.length) townUi.cursor = 0;
+}
+function openTown(mode: TownMode): void {
+  townUi.open = true;
+  townUi.mode = mode;
+  townUi.cursor = 0;
+  townUi.candidate = mode === 'recruit' ? rollCandidate() : null;
+  rebuildTownRows();
+  inv.open = false;
+  spellbook.open = false;
+}
+function closeTown(): void {
+  townUi.open = false;
+}
+function cycleCandidateClass(dir: number): void {
+  const c = townUi.candidate;
+  if (!c) return;
+  const i = CLASS_ORDER.indexOf(c.clazz);
+  c.clazz = CLASS_ORDER[(i + dir + CLASS_ORDER.length) % CLASS_ORDER.length]!;
+}
+function activateTownRow(i: number): void {
+  const row = townUi.rows[i];
+  if (!row) return;
+  if (row.kind === 'reroll') {
+    if (townUi.candidate) townUi.candidate.stats = rollStats(rng);
+  } else if (row.kind === 'class') {
+    cycleCandidateClass(1);
+  } else if (row.kind === 'raise') {
+    world.raiseDead(row.member);
+    rebuildTownRows();
+  } else if (row.kind === 'hire') {
+    if (townUi.candidate && world.replaceMember(row.member, createMember(townUi.candidate, row.member))) {
+      closeTown();
+    }
+  }
+}
+function handleTownKey(k: string): void {
+  const n = townUi.rows.length;
+  if (k === 'escape' || k === 'x') closeTown();
+  else if (k === 'arrowup' || k === 'w') townUi.cursor = (townUi.cursor + n - 1) % n;
+  else if (k === 'arrowdown' || k === 's') townUi.cursor = (townUi.cursor + 1) % n;
+  else if (k === 'arrowleft' && townUi.mode === 'recruit') cycleCandidateClass(-1);
+  else if (k === 'arrowright' && townUi.mode === 'recruit') cycleCandidateClass(1);
+  else if (k === 'enter' || k === ' ') activateTownRow(townUi.cursor);
+}
+function onTownClick(x: number, y: number): void {
+  if (contains(CLOSE_BUTTON, x, y)) return closeTown();
+  const idx = hitTownRow(townUi.rows.length, x, y);
+  if (idx >= 0) {
+    townUi.cursor = idx;
+    activateTownRow(idx);
+  }
+}
 
 function openInventory(): void {
   const pos = world.party.getPose().pos;
@@ -132,9 +264,14 @@ const debug = { minimap: false, slots: false };
 window.addEventListener('keydown', (ev) => {
   audio.unlock(); // browsers only permit audio after a user gesture
   const k = ev.key.toLowerCase();
-  if (k === 'n') {
+  if (k === 'n' && mode !== 'create') { // in creation 'n' is a name keystroke
     audio.toggleMute();
     ev.preventDefault();
+    return;
+  }
+
+  if (mode === 'create') {
+    handleCreateKey(ev, k);
     return;
   }
 
@@ -147,6 +284,12 @@ window.addEventListener('keydown', (ev) => {
       const it = title.items[title.cursor];
       if (it?.enabled) chooseTitle(it.id);
     }
+    ev.preventDefault();
+    return;
+  }
+
+  if (townUi.open) {
+    handleTownKey(k);
     ev.preventDefault();
     return;
   }
@@ -226,6 +369,18 @@ function onPointerDown(x: number, y: number): void {
     if (idx >= 0) chooseTitle(title.items[idx]!.id);
     return;
   }
+  if (mode === 'create') {
+    const idx = hitControl(creation.controls, x, y);
+    if (idx < 0) return;
+    creation.focus = idx;
+    const c = creation.controls[idx]!;
+    if (c.kind === 'class') cycleClass(c.member, 1);
+    else if (c.kind === 'reroll') reroll(c.member);
+    else if (c.kind === 'rerollAll') creation.members.forEach((_, i) => reroll(i));
+    else if (c.kind === 'begin') beginParty();
+    return;
+  }
+  if (townUi.open) return onTownClick(x, y);
   if (inv.open) return onInventoryClick(x, y);
   if (spellbook.open) return onSpellbookClick(x, y);
 
@@ -319,6 +474,11 @@ function renderFrame(): void {
     screen.present();
     return;
   }
+  if (mode === 'create') {
+    drawCreate(ctx, creation.members, creation.controls, creation.focus);
+    screen.present();
+    return;
+  }
   if (inv.open) {
     drawInventory(ctx, inv.ctx, placements, inv.cursor, inv.held, mouse);
     screen.present();
@@ -326,6 +486,11 @@ function renderFrame(): void {
   }
   if (spellbook.open) {
     drawSpellbook(ctx, spellbook.entries, spellbook.cursor);
+    screen.present();
+    return;
+  }
+  if (townUi.open) {
+    drawTownOverlay(ctx, townUi.mode, roster, townUi.rows, townUi.cursor, townUi.candidate);
     screen.present();
     return;
   }
@@ -365,9 +530,11 @@ if (import.meta.env.DEV) {
     __inv: inv,
     __placements: placements,
     __spellbook: spellbook,
+    __townUi: townUi,
     __level: level,
     __click: onPointerDown,
     __audio: audio,
     __mode: () => mode,
+    __creation: creation,
   });
 }

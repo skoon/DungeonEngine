@@ -20,6 +20,7 @@ export const SKELETON: MonsterSpecies = {
   sight: 8,
   xp: 12,
   ai: 'dumb',
+  gold: [2, 8],
 };
 
 export const KOBOLD: MonsterSpecies = {
@@ -37,6 +38,7 @@ export const KOBOLD: MonsterSpecies = {
   xp: 8,
   ai: 'smart',
   fleeBelow: 0.34,
+  gold: [3, 12],
   loot: () => [item('dagger')],
 };
 
@@ -54,6 +56,7 @@ export const GIANT_RAT: MonsterSpecies = {
   sight: 6,
   xp: 4,
   ai: 'dumb',
+  gold: [0, 3],
 };
 
 export const CAVE_SPIDER: MonsterSpecies = {
@@ -71,6 +74,7 @@ export const CAVE_SPIDER: MonsterSpecies = {
   xp: 10,
   ai: 'smart',
   fleeBelow: 0.25,
+  gold: [4, 10],
 };
 
 export const ZOMBIE: MonsterSpecies = {
@@ -87,6 +91,7 @@ export const ZOMBIE: MonsterSpecies = {
   sight: 6,
   xp: 16,
   ai: 'dumb',
+  gold: [5, 15],
 };
 
 export const WRAITH: MonsterSpecies = {
@@ -104,6 +109,7 @@ export const WRAITH: MonsterSpecies = {
   xp: 22,
   ai: 'smart',
   fleeBelow: 0.2,
+  gold: [10, 25],
 };
 
 export const BONE_LORD: MonsterSpecies = {
@@ -120,6 +126,7 @@ export const BONE_LORD: MonsterSpecies = {
   sight: 10,
   xp: 120,
   ai: 'dumb', // relentless — never flees
+  gold: [80, 160],
   loot: () => [item('short_sword'), item('potion_heal'), item('gem')],
 };
 

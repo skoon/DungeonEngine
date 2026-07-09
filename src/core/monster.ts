@@ -28,6 +28,8 @@ export interface MonsterSpecies {
   sight: number;
   xp: number;
   ai: AiKind;
+  /** Coin dropped on death, rolled uniformly in [min, max] (plan M-DR2). */
+  gold?: [number, number];
   /** Smart monsters flee below this fraction of max HP. */
   fleeBelow?: number;
   /** Loot dropped on death. */

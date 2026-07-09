@@ -43,6 +43,8 @@ export interface Character {
   portrait: number;
   clazz: Clazz;
   stats: Stats;
+  /** Hit die (from the class) used for HP growth on level-up. */
+  hitDie: number;
   level: number;
   xp: number;
   hp: { cur: number; max: number };
@@ -101,6 +103,7 @@ export interface CharacterConfig {
   stats: Stats;
   hpMax: number;
   mpMax: number;
+  hitDie?: number;
   level?: number;
   hands?: [Item | null, Item | null];
   equipment?: Equipment;
@@ -118,6 +121,7 @@ export function makeCharacter(cfg: CharacterConfig): Character {
     portrait: cfg.portrait,
     clazz: cfg.clazz,
     stats: cfg.stats,
+    hitDie: cfg.hitDie ?? 8,
     level: cfg.level ?? 1,
     xp: 0,
     hp: { cur: cfg.hpMax, max: cfg.hpMax },

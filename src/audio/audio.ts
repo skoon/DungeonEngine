@@ -58,6 +58,7 @@ export class GameAudio {
       case 'monster/died': this.crumble(); break;
       case 'char/down': this.down(); break;
       case 'char/healed': this.shimmer(); break;
+      case 'char/leveledUp': this.fanfare(); break;
       case 'spell/cast': this.chime(); break;
       case 'item/taken': this.ding(); break;
       case 'party/fell': this.fall(); break;
@@ -132,6 +133,7 @@ export class GameAudio {
   private crumble(): void { this.noise(0.28, 0.26, 700, 'lowpass'); this.tone(160, 0.28, 'sawtooth', 0.1, 60); }
   private down(): void { this.tone(160, 0.18, 'sine', 0.2, 70); this.tone(80, 0.3, 'sine', 0.14); }
   private shimmer(): void { [523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 0.16, 'triangle', 0.14), i * 55)); }
+  private fanfare(): void { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.2, 'square', 0.12), i * 70)); }
   private chime(): void { this.tone(880, 0.18, 'sine', 0.14); this.tone(1320, 0.22, 'sine', 0.09); }
   private ding(): void { this.tone(1046, 0.1, 'sine', 0.16); }
   private fall(): void { this.tone(600, 0.5, 'sine', 0.18, 80); setTimeout(() => this.noise(0.12, 0.3, 300), 480); }

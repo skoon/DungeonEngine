@@ -21,7 +21,7 @@ function build(name: string, clazz: Clazz, portrait: number, gear: Gear): Charac
   const def = CLASSES[clazz];
   const hpMax = def.hitDie + statMod(def.stats.con) + 8;
   const mpMax = def.caster ? 6 + statMod(Math.max(def.stats.int, def.stats.wis)) : 0;
-  return makeCharacter({ name, clazz, portrait, stats: { ...def.stats }, hpMax, mpMax, ...gear });
+  return makeCharacter({ name, clazz, portrait, stats: { ...def.stats }, hpMax, mpMax, hitDie: def.hitDie, ...gear });
 }
 
 export function defaultParty(): Character[] {
@@ -34,7 +34,7 @@ export function defaultParty(): Character[] {
     build('Bram', 'cleric', 1, {
       hands: [null, item('wooden_shield')],
       backpack: [item('potion_heal')],
-      spells: [spell('cure_wounds'), spell('shield'), spell('light')],
+      spells: [spell('cure_wounds'), spell('shield'), spell('light'), spell('town_portal')],
     }),
     build('Sable', 'mage', 2, {
       backpack: [item('dagger')],

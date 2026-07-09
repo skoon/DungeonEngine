@@ -17,9 +17,10 @@ import { type Projectile, spawnProjectile } from './projectile';
 import { resolveAttack, rollDamage } from './combat';
 import { type Blocked, manhattan, stepAway, stepToward } from './path';
 import { type Character, armorClass, attackBonus, isDisabled, statMod, weaponDamage } from './character';
+import { applyLevelUps } from './leveling';
 import { isWeapon, type Item } from './item';
 import type { SpellDef } from './spell';
-import type { EventBus, LogChannel } from './events';
+import type { EventBus, LogChannel, TownService } from './events';
 import type { Action, EdgeAddr } from './triggers';
 import type { Rng } from './rng';
 import type { Roster } from './roster';
@@ -62,6 +63,7 @@ export interface WorldSnapshot {
   party: { x: number; y: number; facing: Dir };
   litMsLeft: number;
   hunger: number;
+  recall?: { level: number; x: number; y: number; facing: Dir } | null;
   levels: LevelSnapshot[];
 }
 export interface SnapshotDeps {
@@ -78,6 +80,12 @@ export class World {
   private current = 0;
   private litMsLeft = 0;
   private hunger = 0;
+  /** Where the Town Portal spell leads. Injected from data (main.ts) so core
+   * stays free of map content (plan M-DR3). */
+  private town: { level: number; pos: Vec2; facing: Dir } | null = null;
+  /** Where a cast Town Portal will return the party, until they step through
+   * the town's return portal. Persisted in the save (plan M-DR3). */
+  private recall: { level: number; pos: Vec2; facing: Dir } | null = null;
 
   constructor(
     levels: Level | Level[],
@@ -115,6 +123,18 @@ export class World {
   /** Whether a Light spell is currently active (plan §6.3; render hook). */
   isLit(): boolean {
     return this.litMsLeft > 0;
+  }
+
+  /** Point the Town Portal spell at a level + arrival pose (plan M-DR3). Called
+   * once at boot from data, keeping the town's location out of core. */
+  setTown(level: number, pos: Vec2, facing: Dir): void {
+    this.town = { level, pos: { ...pos }, facing };
+  }
+
+  /** True while a monster is actively hunting or attacking — no camping or
+   * town-portalling out of a live fight (plan §6.4 / M-DR3). */
+  private inDanger(): boolean {
+    return this.monsters.some((m) => m.state === 'hunt' || m.state === 'attack');
   }
 
   /** Move the party to another level (stairs/pit). Autosave hook fires via
@@ -168,6 +188,7 @@ export class World {
           if (c.buff.msLeft <= 0) c.buff = null;
         }
       }
+      this.roster.bleed(dtMs, this.bus); // dying members bleed toward −10 (plan §6.4)
       this.roster.tickFlash(dtMs);
     }
     this.litMsLeft = Math.max(0, this.litMsLeft - dtMs);
@@ -264,12 +285,38 @@ export class World {
     m.state = 'dead';
     this.bus.emit({ type: 'monster/died', name: m.species.name, xp: m.species.xp });
     this.msg('loot', `The ${m.species.name} is destroyed! (+${m.species.xp} XP)`);
-    if (this.roster) for (const c of this.roster.members) c.xp += m.species.xp;
+    this.grantXp(m.species.xp);
+    this.grantGold(m.species.gold);
     const drops = m.species.loot?.() ?? [];
     if (drops.length > 0) {
       const cell = cellAt(this.level, m.pos.x, m.pos.y);
       if (cell) cell.items = [...(cell.items ?? []), ...drops];
     }
+  }
+
+  /** Award XP to every living member and apply any level-ups (plan M10). */
+  private grantXp(amount: number): void {
+    if (!this.roster) return;
+    for (let i = 0; i < this.roster.members.length; i++) {
+      const c = this.roster.members[i]!;
+      if (isDisabled(c)) continue; // the fallen earn nothing this fight
+      c.xp += amount;
+      if (applyLevelUps(c, this.rng) > 0) {
+        this.roster.healFlash[i] = 220; // celebratory flash + fresh HP
+        this.bus.emit({ type: 'char/leveledUp', member: i, level: c.level });
+        this.msg('loot', `${c.name} reaches level ${c.level}!`);
+      }
+    }
+  }
+
+  /** Roll and bank a monster's coin drop, announcing it (plan M-DR2). */
+  private grantGold(range?: [number, number]): void {
+    if (!this.roster || !range) return;
+    const amount = this.rng.int(range[0], range[1]);
+    if (amount <= 0) return;
+    this.roster.earn(amount);
+    this.bus.emit({ type: 'party/gold', amount, total: this.roster.gold });
+    this.msg('loot', `You find ${amount} gold.`);
   }
 
   private updateMonsters(dtMs: number): void {
@@ -455,6 +502,9 @@ export class World {
       case 'detect':
         this.castDetect(def);
         break;
+      case 'townPortal':
+        ok = this.castTownPortal();
+        break;
     }
     if (!ok) return;
 
@@ -551,6 +601,40 @@ export class World {
       'ambient',
       found > 0 ? `You sense ${found} hidden passage${found > 1 ? 's' : ''} nearby!` : 'You sense nothing hidden nearby.',
     );
+  }
+
+  /** Open a Town Portal (plan M-DR3): remember the current pose as the recall
+   * anchor and whisk the party to town. Refused mid-fight or if already there.
+   * Returns false (no mana spent) when it can't be cast. */
+  private castTownPortal(): boolean {
+    if (!this.town) {
+      this.msg('system', 'The way to town is closed to you.');
+      return false;
+    }
+    if (this.current === this.town.level) {
+      this.msg('system', 'You are already in town.');
+      return false;
+    }
+    if (this.inDanger()) {
+      this.msg('system', 'You cannot open a portal while enemies press the attack.');
+      return false;
+    }
+    const { pos, facing } = this.party.getPose();
+    this.recall = { level: this.current, pos: { ...pos }, facing };
+    this.changeLevel(this.town.level, this.town.pos, this.town.facing);
+    return true;
+  }
+
+  /** Step back through the town's return portal to where Town Portal was cast
+   * (plan M-DR3). The anchor is one-shot: consumed on return. */
+  returnFromTown(): void {
+    if (!this.recall) {
+      this.msg('system', 'The portal shimmers and fades — there is nowhere to return to.');
+      return;
+    }
+    const r = this.recall;
+    this.recall = null;
+    this.changeLevel(r.level, r.pos, r.facing);
   }
 
   /** Operate whatever the party is facing: button/lever, keyhole, or alcove. */
@@ -711,6 +795,7 @@ export class World {
       return;
     }
     if (t.kind === 'altar') this.reviveAtAltar();
+    if (t.kind === 'townhub' && t.service) this.enterTownService(t.service);
 
     if (t.onEnter) {
       this.run(t.onEnter);
@@ -773,7 +858,7 @@ export class World {
    */
   camp(): void {
     if (!this.roster) return;
-    if (this.monsters.some((m) => m.state === 'hunt' || m.state === 'attack')) {
+    if (this.inDanger()) {
       this.msg('system', 'It is too dangerous to make camp.');
       return;
     }
@@ -818,6 +903,86 @@ export class World {
         ? `The altar's light knits bone and breath — ${revived} rise again.`
         : 'The altar glows softly, but none here need its blessing.',
     );
+  }
+
+  // --- Town Hub services (plan M-DR4) ---------------------------------------
+
+  /** Handle stepping onto a town service cell. Rest and return happen in core;
+   * raise/recruit only announce themselves — the UI opens an overlay and then
+   * calls back into {@link raiseDead} / {@link replaceMember}. */
+  private enterTownService(service: TownService): void {
+    this.bus.emit({ type: 'town/service', service });
+    if (service === 'rest') this.restInTown();
+    else if (service === 'return') this.returnFromTown();
+  }
+
+  /** Fully restore the living party (HP/MP, poison, hunger, stabilises the
+   * dying) at the town's rest point. The dead are untouched — they must be
+   * raised first. */
+  restInTown(): void {
+    if (!this.roster) return;
+    for (const c of this.roster.members) {
+      if (c.conditions.has('dead')) continue;
+      c.hp.cur = c.hp.max;
+      c.mp.cur = c.mp.max;
+      c.conditions.delete('poisoned');
+      c.conditions.delete('unconscious');
+    }
+    this.hunger = 0;
+    this.msg('loot', 'The party rests in the safety of town, fully restored.');
+  }
+
+  /** Raise a dead member for gold scaled by their level, returning them at half
+   * health with identity, gear, and XP intact. False (nothing spent) if they
+   * are not dead or the party cannot afford it. */
+  raiseDead(index: number): boolean {
+    if (!this.roster) return false;
+    const c = this.roster.member(index);
+    if (!c || !c.conditions.has('dead')) {
+      this.msg('system', 'There is no one to raise there.');
+      return false;
+    }
+    const cost = RAISE_COST_PER_LEVEL * c.level;
+    if (!this.roster.spend(cost)) {
+      this.msg('system', `Raising ${c.name} costs ${cost} gold — the purse is too light.`);
+      return false;
+    }
+    c.conditions.delete('dead');
+    c.hp.cur = 0; // give heal() room to work
+    this.roster.heal(index, Math.max(1, Math.floor(c.hp.max / 2)), this.bus);
+    this.bus.emit({ type: 'char/raised', member: index });
+    this.msg('loot', `The shrine's light returns ${c.name} to life for ${cost} gold.`);
+    return true;
+  }
+
+  /** Replace a member (typically a dead one) with a freshly-recruited
+   * adventurer, dropping the outgoing member's gear on the town floor so it
+   * isn't lost. Costs {@link RECRUIT_COST} gold. */
+  replaceMember(index: number, replacement: Character): boolean {
+    if (!this.roster) return false;
+    const old = this.roster.member(index);
+    if (!old) return false;
+    if (!this.roster.spend(RECRUIT_COST)) {
+      this.msg('system', `Recruiting costs ${RECRUIT_COST} gold — the purse is too light.`);
+      return false;
+    }
+    this.dropMemberGear(old);
+    this.roster.install(index, replacement);
+    this.bus.emit({ type: 'char/replaced', member: index });
+    this.msg('loot', `${replacement.name} joins the party in ${old.name}'s stead.`);
+    return true;
+  }
+
+  /** Tip a departing member's carried gear onto the party's current cell. */
+  private dropMemberGear(c: Character): void {
+    const items: Item[] = [];
+    for (const h of c.hands) if (h) items.push(h);
+    for (const it of Object.values(c.equipment)) if (it) items.push(it);
+    for (const it of c.backpack) if (it) items.push(it);
+    if (items.length === 0) return;
+    const pos = this.party.getPose().pos;
+    const cell = cellAt(this.level, pos.x, pos.y);
+    if (cell) cell.items = [...(cell.items ?? []), ...items];
   }
 
   private consumeFood(): boolean {
@@ -870,6 +1035,9 @@ export class World {
       party: { x: this.party.getPose().pos.x, y: this.party.getPose().pos.y, facing: this.party.getPose().facing },
       litMsLeft: this.litMsLeft,
       hunger: this.hunger,
+      recall: this.recall
+        ? { level: this.recall.level, x: this.recall.pos.x, y: this.recall.pos.y, facing: this.recall.facing }
+        : null,
       levels: this.levels.map((level, i) => this.snapshotLevel(level, this.monstersByLevel[i]!)),
     };
   }
@@ -921,6 +1089,9 @@ export class World {
     this.current = Math.max(0, Math.min(snap.current, this.levels.length - 1));
     this.litMsLeft = snap.litMsLeft;
     this.hunger = snap.hunger;
+    this.recall = snap.recall
+      ? { level: snap.recall.level, pos: { x: snap.recall.x, y: snap.recall.y }, facing: snap.recall.facing }
+      : null;
 
     snap.levels.forEach((ls, i) => {
       const level = this.levels[i];
@@ -967,6 +1138,15 @@ export class World {
 
 const WANDER_CHANCE = 0.15;
 const STARVE_AT = 3;
+/** Gold to raise the dead, per level of the fallen (plan M-DR4). */
+export const RAISE_COST_PER_LEVEL = 100;
+/** Gold to recruit a replacement adventurer. */
+export const RECRUIT_COST = 50;
+
+/** Gold to raise a specific fallen character (level-scaled). */
+export function raiseCost(level: number): number {
+  return RAISE_COST_PER_LEVEL * level;
+}
 
 function toItemRef(it: Item): ItemRef {
   return {

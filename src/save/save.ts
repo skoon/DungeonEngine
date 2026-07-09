@@ -25,6 +25,7 @@ interface CharSave {
   portrait: number;
   clazz: Character['clazz'];
   stats: Character['stats'];
+  hitDie: number;
   level: number;
   xp: number;
   hpCur: number;
@@ -44,6 +45,7 @@ interface CharSave {
 interface GameSave {
   version: number;
   rng: number;
+  gold: number;
   roster: CharSave[];
   world: WorldSnapshot;
 }
@@ -80,6 +82,7 @@ function saveChar(c: Character): CharSave {
     portrait: c.portrait,
     clazz: c.clazz,
     stats: { ...c.stats },
+    hitDie: c.hitDie,
     level: c.level,
     xp: c.xp,
     hpCur: c.hp.cur,
@@ -107,6 +110,7 @@ function loadChar(cs: CharSave): Character {
     stats: cs.stats,
     hpMax: cs.hpMax,
     mpMax: cs.mpMax,
+    hitDie: cs.hitDie,
     level: cs.level,
     hands: [refToItem(cs.hands[0] ?? null), refToItem(cs.hands[1] ?? null)],
     equipment,
@@ -129,6 +133,7 @@ export function serialize(world: World, roster: Roster, rng: Rng): string {
   const save: GameSave = {
     version: VERSION,
     rng: rng.getState(),
+    gold: roster.gold,
     roster: roster.members.map(saveChar),
     world: world.snapshot(),
   };
@@ -148,6 +153,7 @@ export function deserialize(json: string, world: World, roster: Roster, rng: Rng
   if (save.version !== VERSION || !Array.isArray(save.roster) || !save.world) return false;
 
   rng.setState(save.rng);
+  roster.gold = save.gold ?? 0;
   save.roster.forEach((cs, i) => {
     roster.members[i] = loadChar(cs);
     roster.hurt[i] = 0;

@@ -11,6 +11,9 @@ import type { Dir } from './grid';
 
 export type LogChannel = 'combat' | 'damage' | 'loot' | 'ambient' | 'system';
 
+/** The four services a Town Hub cell can offer (plan M-DR4). */
+export type TownService = 'raise' | 'recruit' | 'rest' | 'return';
+
 export type GameEvent =
   | { type: 'sim/tick'; tick: number }
   | { type: 'log/message'; channel: LogChannel; text: string }
@@ -24,15 +27,21 @@ export type GameEvent =
   | { type: 'interact/used'; kind: 'button' | 'lever' }
   | { type: 'char/damaged'; member: number; amount: number; hpCur: number }
   | { type: 'char/down'; member: number }
+  | { type: 'char/died'; member: number }
   | { type: 'item/taken'; name: string }
   | { type: 'item/dropped'; name: string }
   | { type: 'attack/resolved'; by: 'party' | 'monster'; hit: boolean; damage: number }
   | { type: 'monster/died'; name: string; xp: number }
+  | { type: 'party/gold'; amount: number; total: number }
   | { type: 'party/wiped' }
   | { type: 'spell/cast'; member: number; spellId: string }
   | { type: 'char/healed'; member: number; amount: number; hpCur: number }
+  | { type: 'char/leveledUp'; member: number; level: number }
   | { type: 'level/changed'; index: number; name: string }
   | { type: 'party/camped' }
+  | { type: 'town/service'; service: TownService }
+  | { type: 'char/raised'; member: number }
+  | { type: 'char/replaced'; member: number }
   | { type: 'game/saved' }
   | { type: 'game/loaded' };
 

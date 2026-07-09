@@ -39,10 +39,14 @@ export function drawPartyPanel(
     }
   });
   drawCompass(ctx, facing);
+  // Shared coin purse (plan M-DR5).
+  text(ctx, `Gold ${roster.gold}`, COMPASS.x, COMPASS.y - 10, SWEETIE16.yellow);
 }
 
 function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: boolean, healed: boolean): void {
   const down = isDisabled(c);
+  const dead = c.conditions.has('dead');
+  const dying = !dead && c.hp.cur <= 0; // unconscious and bleeding out
   const accent = down ? COLORS.textDim : CLASS_COLOR[CLASSES[c.clazz].name] ?? COLORS.text;
 
   // Damage/heal flash: a colour wash over the whole card.
@@ -65,10 +69,12 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: bo
 
   const tx = px + 34;
   text(ctx, c.name, tx, py, down ? COLORS.textDim : COLORS.text);
-  text(ctx, `${CLASSES[c.clazz].name}  AC${armorClass(c)}`, tx, py + 10, COLORS.textDim);
+  text(ctx, `L${c.level} ${CLASSES[c.clazz].name}  AC${armorClass(c)}`, tx, py + 10, COLORS.textDim);
 
   bar(ctx, tx, py + 22, 118, c.hp.cur, c.hp.max, COLORS.hpFill);
-  text(ctx, `HP ${c.hp.cur}/${c.hp.max}`, tx, py + 22, COLORS.text);
+  const hpColor = dead ? SWEETIE16.red : dying ? SWEETIE16.orange : COLORS.text;
+  const hpLabel = dead ? 'DEAD' : dying ? `DYING ${c.hp.cur}` : `HP ${c.hp.cur}/${c.hp.max}`;
+  text(ctx, hpLabel, tx, py + 22, hpColor);
   if (c.mp.max > 0) {
     bar(ctx, tx, py + 34, 118, c.mp.cur, c.mp.max, COLORS.manaFill);
     text(ctx, `MP ${c.mp.cur}/${c.mp.max}`, tx, py + 34, COLORS.text);

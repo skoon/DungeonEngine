@@ -16,6 +16,7 @@
 
 import { type Dir, type Vec2, translate } from './grid';
 import type { Action } from './triggers';
+import type { TownService } from './events';
 import type { Item } from './item';
 import type { MonsterSpawn } from './monster';
 
@@ -73,7 +74,7 @@ export interface EdgeWall {
  * couple of built-in behaviours (pit fall). Plates fire on enter and leave.
  */
 export interface CellTrigger {
-  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext' | 'altar';
+  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext' | 'altar' | 'townhub';
   onEnter?: Action[];
   onLeave?: Action[];
   /** Whether the renderer draws a floor marker (hidden plates: false). */
@@ -81,6 +82,8 @@ export interface CellTrigger {
   text?: string;
   /** Destination for stairs/pit level transitions (plan §5/M9). */
   link?: LevelLink;
+  /** For a 'townhub' cell: which service it offers (plan M-DR4). */
+  service?: TownService;
 }
 
 export interface LevelLink {
