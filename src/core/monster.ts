@@ -12,6 +12,30 @@ import type { Item } from './item';
 export type AiKind = 'dumb' | 'smart';
 export type MonsterState = 'idle' | 'hunt' | 'attack' | 'flee' | 'dead';
 
+/** A cardinal ranged attack: the monster looses a bolt down a clear line of
+ * sight when it can see the party but isn't adjacent (plan M13). */
+export interface RangedSpec {
+  damage: [number, number];
+  /** Maximum cells the bolt travels. */
+  range: number;
+  /** Bolt hop cadence, ms (defaults to the projectile system's default). */
+  hopMs?: number;
+  glyph?: string;
+  color?: string;
+  /** Name used in combat log lines ("...a chill bolt!"). */
+  label?: string;
+}
+
+/** A boss phase, triggered once the monster's HP drops to `atHpFrac` of max
+ * (plan M13). Phases are declared high→low and fire in order, at most once. */
+export interface PhaseSpec {
+  atHpFrac: number;
+  /** Summon reinforcements (placed safely near the party). */
+  summon?: { species: MonsterSpecies; count: number };
+  /** Multiply the boss's move/attack timers — <1 enrages (faster). */
+  speedMult?: number;
+}
+
 export interface MonsterSpecies {
   id: string;
   name: string;
@@ -32,6 +56,12 @@ export interface MonsterSpecies {
   gold?: [number, number];
   /** Smart monsters flee below this fraction of max HP. */
   fleeBelow?: number;
+  /** Chance (0..1) a successful hit also poisons the target (plan M13). */
+  poison?: number;
+  /** Cardinal ranged attack (plan M13). */
+  ranged?: RangedSpec;
+  /** Boss phase behaviors, declared high→low HP fraction (plan M13). */
+  phases?: PhaseSpec[];
   /** Loot dropped on death. */
   loot?: () => Item[];
 }
@@ -46,6 +76,10 @@ export interface Monster {
   attackTimer: number;
   /** Hurt-flash timer, ms. */
   flash: number;
+  /** Timer multiplier from enrage phases; 1 by default (plan M13). */
+  speedMult: number;
+  /** How many boss phases have fired so far (plan M13). */
+  phasesFired: number;
 }
 
 export interface MonsterSpawn {
@@ -65,6 +99,8 @@ export function spawnMonster(spawn: MonsterSpawn): Monster {
     moveTimer: sp.moveMs,
     attackTimer: sp.attackMs,
     flash: 0,
+    speedMult: 1,
+    phasesFired: 0,
   };
 }
 

@@ -52,6 +52,9 @@ export interface MonsterSnapshot {
   state: MonsterState;
   moveTimer: number;
   attackTimer: number;
+  /** Boss phase progress (plan M13); absent for ordinary monsters. */
+  speedMult?: number;
+  phasesFired?: number;
 }
 export interface LevelSnapshot {
   items: Record<string, ItemRef[]>;
@@ -79,6 +82,7 @@ export class World {
   private readonly monstersByLevel: Monster[][];
   private current = 0;
   private litMsLeft = 0;
+  private wanderTimerMs = 0;
   private hunger = 0;
   /** Where the Town Portal spell leads. Injected from data (main.ts) so core
    * stays free of map content (plan M-DR3). */
@@ -143,6 +147,7 @@ export class World {
     if (index < 0 || index >= this.levels.length) return;
     this.current = index;
     this.projectiles.length = 0;
+    this.wanderTimerMs = 0;
     this.party.enter(this.levels[index]!, pos, facing ?? this.party.getPose().facing);
     this.bus.emit({ type: 'level/changed', index, name: this.levels[index]!.name });
     this.msg('system', `You arrive at ${this.levels[index]!.name}.`);
@@ -189,12 +194,30 @@ export class World {
         }
       }
       this.roster.bleed(dtMs, this.bus); // dying members bleed toward −10 (plan §6.4)
+      this.roster.tickPoison(dtMs, this.bus); // venom chips HP over time (plan M13)
       this.roster.tickFlash(dtMs);
     }
     this.litMsLeft = Math.max(0, this.litMsLeft - dtMs);
+    this.tickWanderers(dtMs);
     this.updateMonsters(dtMs);
     this.tickProjectiles(dtMs);
     this.pruneDead();
+  }
+
+  /** Grind loop (plan M12): on a level flagged for wandering, trickle in fresh
+   * monsters from its spawn pool — capped, so it stays a controlled farm and
+   * never piles onto a party already fighting. */
+  private tickWanderers(dtMs: number): void {
+    const cfg = this.level.wander;
+    if (!cfg || !this.roster) return;
+    if (this.monsters.length >= cfg.maxAlive) {
+      this.wanderTimerMs = 0;
+      return;
+    }
+    this.wanderTimerMs += dtMs;
+    if (this.wanderTimerMs < cfg.everyMs) return;
+    this.wanderTimerMs = 0;
+    this.spawnWanderer();
   }
 
   /** Remove monsters killed this tick, whichever system killed them
@@ -274,11 +297,58 @@ export class World {
     this.msg('combat', `${c.name} hurls the ${weapon.tpl.name}.`);
   }
 
+  /** Roll a monster's on-hit poison against a member it just wounded (plan M13). */
+  private maybePoison(m: Monster, idx: number, c: Character): void {
+    if (!this.roster || !m.species.poison) return;
+    if (isDisabled(c)) return; // no venom in a corpse
+    if (this.rng.next() < m.species.poison) {
+      this.roster.applyPoison(idx);
+      this.msg('damage', `Venom courses through ${c.name}!`);
+    }
+  }
+
   /** Apply damage to a monster (shared by melee, projectiles, and spells). */
   private hitMonster(m: Monster, dmg: number): void {
     m.flash = MONSTER_FLASH_MS;
     m.hp.cur -= dmg;
-    if (m.hp.cur <= 0) this.killMonster(m);
+    if (m.hp.cur <= 0) {
+      this.killMonster(m);
+    } else {
+      this.checkPhases(m);
+    }
+  }
+
+  /** Fire any boss phases whose HP threshold this hit just crossed (plan M13):
+   * summon reinforcements and/or enrage. Phases fire in declared order, once. */
+  private checkPhases(m: Monster): void {
+    const phases = m.species.phases;
+    if (!phases) return;
+    while (m.phasesFired < phases.length) {
+      const phase = phases[m.phasesFired]!;
+      if (m.hp.cur > m.species.maxHp * phase.atHpFrac) break;
+      m.phasesFired += 1;
+      if (phase.speedMult && phase.speedMult > 0) {
+        m.speedMult *= phase.speedMult;
+        this.msg('damage', `The ${m.species.name} howls and quickens!`);
+      }
+      if (phase.summon) this.summonMonsters(m, phase.summon.species, phase.summon.count);
+    }
+  }
+
+  /** Place `count` fresh monsters near the party (safe placement via
+   * findSpawnSpot), as a boss summon (plan M13). */
+  private summonMonsters(source: Monster, species: MonsterSpecies, count: number): void {
+    const partyPos = this.party.getPose().pos;
+    let summoned = 0;
+    for (let i = 0; i < count; i++) {
+      const spot = this.findSpawnSpot();
+      if (!spot) break;
+      const mob = spawnMonster({ pos: spot, facing: faceToward(spot, partyPos), species });
+      mob.state = 'hunt'; // arrives already stalking the party
+      this.monsters.push(mob);
+      summoned++;
+    }
+    if (summoned > 0) this.msg('damage', `The ${source.species.name} raises ${summoned} ${species.name}${summoned > 1 ? 's' : ''} from the dead!`);
   }
 
   private killMonster(m: Monster): void {
@@ -340,8 +410,10 @@ export class World {
         m.facing = faceToward(m.pos, partyPos);
         if (m.attackTimer <= 0 && adjacent) {
           this.monsterAttack(m);
-          m.attackTimer = m.species.attackMs;
+          m.attackTimer = m.species.attackMs * m.speedMult;
         }
+      } else if (m.state === 'hunt' && m.species.ranged && m.attackTimer <= 0 && this.fireRanged(m, partyPos)) {
+        m.attackTimer = m.species.attackMs * m.speedMult;
       } else if (m.moveTimer <= 0) {
         const dir =
           m.state === 'flee'
@@ -351,9 +423,37 @@ export class World {
           m.facing = dir;
           m.pos = translate(m.pos, dir);
         }
-        m.moveTimer = m.species.moveMs;
+        m.moveTimer = m.species.moveMs * m.speedMult;
       }
     }
+  }
+
+  /** If the party sits on a clear cardinal line within range, loose a bolt at
+   * them and return true; otherwise false (the monster then closes in). M13. */
+  private fireRanged(m: Monster, partyPos: Vec2): boolean {
+    const spec = m.species.ranged!;
+    const dir = cardinalShot(m.pos, partyPos, spec.range, this.level, (x, y) =>
+      this.monsters.some((o) => o !== m && o.state !== 'dead' && o.pos.x === x && o.pos.y === y),
+    );
+    if (dir === null) return false;
+    m.facing = dir;
+    this.projectiles.push(
+      spawnProjectile({
+        pos: translate(m.pos, dir),
+        dir,
+        from: 'monster',
+        attackBonus: m.species.attackBonus,
+        damage: spec.damage,
+        damageBonus: 0,
+        glyph: spec.glyph ?? '*',
+        color: spec.color ?? m.species.color,
+        label: spec.label ?? `${m.species.name}'s bolt`,
+        ...(spec.hopMs !== undefined ? { hopMs: spec.hopMs } : {}),
+        range: spec.range,
+      }),
+    );
+    this.msg('combat', `The ${m.species.name} looses a ${spec.label ?? 'bolt'}!`);
+    return true;
   }
 
   private monsterAttack(m: Monster): void {
@@ -374,6 +474,7 @@ export class World {
       this.bus.emit({ type: 'attack/resolved', by: 'monster', hit: true, damage: dmg });
       this.msg('damage', `The ${m.species.name} hits ${c.name} for ${dmg}.`);
       this.roster.damage(idx, dmg, this.bus);
+      this.maybePoison(m, idx, c);
       if (this.roster.everyoneDown()) {
         this.bus.emit({ type: 'party/wiped' });
         this.msg('damage', 'The party has fallen!');
@@ -1079,6 +1180,8 @@ export class World {
           state: m.state,
           moveTimer: m.moveTimer,
           attackTimer: m.attackTimer,
+          ...(m.speedMult !== 1 ? { speedMult: m.speedMult } : {}),
+          ...(m.phasesFired !== 0 ? { phasesFired: m.phasesFired } : {}),
         })),
     };
   }
@@ -1123,6 +1226,8 @@ export class World {
         m.state = ms.state;
         m.moveTimer = ms.moveTimer;
         m.attackTimer = ms.attackTimer;
+        m.speedMult = ms.speedMult ?? 1;
+        m.phasesFired = ms.phasesFired ?? 0;
         return m;
       });
     });
@@ -1162,4 +1267,32 @@ function faceToward(from: Vec2, to: Vec2): Dir {
   const dy = to.y - from.y;
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 1 : 3;
   return dy >= 0 ? 2 : 0;
+}
+
+/**
+ * If `to` lies on a clear cardinal line from `from` within `range`, return the
+ * firing direction; else null. "Clear" = no wall/door edge between cells and no
+ * blocking monster on an intermediate cell (the target cell itself may hold the
+ * party). Used for monster ranged attacks (plan M13).
+ */
+function cardinalShot(
+  from: Vec2,
+  to: Vec2,
+  range: number,
+  level: Level,
+  blocked: (x: number, y: number) => boolean,
+): Dir | null {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if ((dx !== 0 && dy !== 0) || (dx === 0 && dy === 0)) return null; // not on a line
+  const dist = Math.abs(dx) + Math.abs(dy);
+  if (dist > range) return null;
+  const dir: Dir = dx !== 0 ? (dx > 0 ? 1 : 3) : dy > 0 ? 2 : 0;
+  let cur: Vec2 = from;
+  for (let step = 0; step < dist; step++) {
+    if (!canEnter(level, cur, dir)) return null; // wall/closed door in the way
+    cur = translate(cur, dir);
+    if (step < dist - 1 && blocked(cur.x, cur.y)) return null; // ally between us
+  }
+  return dir;
 }

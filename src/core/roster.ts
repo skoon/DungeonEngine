@@ -15,6 +15,10 @@ const FLASH_MS = 220;
 const DYING_FLOOR = -10;
 /** How much real time buys one point of bleed-out while unconscious. */
 const BLEED_INTERVAL_MS = 1000;
+/** Real time per point of poison damage (plan M13). */
+const POISON_INTERVAL_MS = 2000;
+/** How many points a fresh dose of poison deals before it wears off. */
+const POISON_DOSE = 6;
 
 export class Roster {
   /** Per-member hurt-flash timer (ms), for the party-panel damage flash. */
@@ -23,6 +27,10 @@ export class Roster {
   readonly healFlash: number[];
   /** Per-member accumulated time toward the next bleed-out point (ms). */
   private readonly bleedAccum: number[];
+  /** Per-member accumulated time toward the next poison tick (ms). */
+  private readonly poisonAccum: number[];
+  /** Per-member poison points remaining before the venom wears off. */
+  private readonly poisonLeft: number[];
   /** Party-shared coin purse, spent on town services (plan M-DR2). */
   gold = 0;
 
@@ -30,6 +38,8 @@ export class Roster {
     this.hurt = members.map(() => 0);
     this.healFlash = members.map(() => 0);
     this.bleedAccum = members.map(() => 0);
+    this.poisonAccum = members.map(() => 0);
+    this.poisonLeft = members.map(() => 0);
   }
 
   /** Add coin to the shared purse. */
@@ -86,6 +96,8 @@ export class Roster {
     this.hurt[index] = 0;
     this.healFlash[index] = 0;
     this.bleedAccum[index] = 0;
+    this.poisonAccum[index] = 0;
+    this.poisonLeft[index] = 0;
   }
 
   /** First member with a free backpack slot, or -1. */
@@ -144,6 +156,47 @@ export class Roster {
         c.hp.cur -= 1;
         this.checkDeath(i, bus);
       }
+    }
+  }
+
+  /** Envenom a member: a fresh dose of poison that will chip HP over time
+   * until it wears off or is cured (plan M13). Re-application refreshes it.
+   * The dead and already-fallen can't be newly poisoned. */
+  applyPoison(index: number): void {
+    const c = this.members[index];
+    if (!c || isDisabled(c)) return;
+    c.conditions.add('poisoned');
+    this.poisonLeft[index] = POISON_DOSE;
+    this.poisonAccum[index] = 0;
+  }
+
+  /**
+   * Advance poison for every envenomed, conscious member (plan M13): 1 HP per
+   * {@link POISON_INTERVAL_MS} until the dose runs out, then the condition
+   * clears. Paused while a member is unconscious (bleed-out takes over) and
+   * fully cleared by Cure Wounds / camp elsewhere. Called from World.tick.
+   */
+  tickPoison(dtMs: number, bus: EventBus): void {
+    for (let i = 0; i < this.members.length; i++) {
+      const c = this.members[i]!;
+      if (!c.conditions.has('poisoned')) {
+        this.poisonAccum[i] = 0;
+        this.poisonLeft[i] = 0;
+        continue;
+      }
+      if (isDisabled(c)) continue; // paused while down/dead
+      if (this.poisonLeft[i]! <= 0) {
+        c.conditions.delete('poisoned');
+        this.poisonAccum[i] = 0;
+        continue;
+      }
+      this.poisonAccum[i] = (this.poisonAccum[i] ?? 0) + dtMs;
+      while (this.poisonAccum[i]! >= POISON_INTERVAL_MS && this.poisonLeft[i]! > 0 && !isDisabled(c)) {
+        this.poisonAccum[i]! -= POISON_INTERVAL_MS;
+        this.poisonLeft[i]! -= 1;
+        this.damage(i, 1, bus); // routes collapse/death through the one code path
+      }
+      if (this.poisonLeft[i]! <= 0) c.conditions.delete('poisoned');
     }
   }
 

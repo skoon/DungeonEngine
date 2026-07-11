@@ -75,6 +75,7 @@ export const CAVE_SPIDER: MonsterSpecies = {
   ai: 'smart',
   fleeBelow: 0.25,
   gold: [4, 10],
+  poison: 0.5, // half its bites leave venom that chips HP between fights (M13)
 };
 
 export const ZOMBIE: MonsterSpecies = {
@@ -110,6 +111,8 @@ export const WRAITH: MonsterSpecies = {
   ai: 'smart',
   fleeBelow: 0.2,
   gold: [10, 25],
+  // Snipes down corridors with a chill bolt when it has a clear line (M13).
+  ranged: { damage: [1, 6], range: 6, glyph: '*', color: '#73eff7', label: 'chill bolt' },
 };
 
 export const BONE_LORD: MonsterSpecies = {
@@ -127,6 +130,9 @@ export const BONE_LORD: MonsterSpecies = {
   xp: 120,
   ai: 'dumb', // relentless — never flees
   gold: [80, 160],
+  // At half health it raises two skeletons and enrages (faster attacks) — a
+  // setpiece turn instead of a stat check (plan M13).
+  phases: [{ atHpFrac: 0.5, summon: { species: SKELETON, count: 2 }, speedMult: 0.9 }],
   loot: () => [item('short_sword'), item('potion_heal'), item('gem')],
 };
 

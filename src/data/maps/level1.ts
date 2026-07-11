@@ -24,6 +24,11 @@ import { KOBOLD, SKELETON } from '../monsters';
 
 export const level1: MapSource = {
   name: 'The Pillared Hall',
+  // Grind loop (plan M12): the hall slowly restocks with wandering undead
+  // (skeletons/kobold, drawn from `monsters` below) so the party can farm XP
+  // before braving the Sunless Crypt — L3 for a risky run at the Bone Lord, L4
+  // to be safe. Capped at 3 alive so it never becomes an ambush.
+  wander: { maxAlive: 3, everyMs: 6000 },
   ascii: `
 #############
 #>..........#

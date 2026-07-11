@@ -93,6 +93,19 @@ export interface LevelLink {
   facing?: Dir;
 }
 
+/**
+ * Grind-loop config (plan M12): while the party explores a level with this set,
+ * a slow, capped trickle of wanderers spawns from the level's own spawn pool so
+ * the party can farm XP up to a safe level before descending. The `maxAlive`
+ * cap keeps it a controlled grind, not an ambush.
+ */
+export interface WanderConfig {
+  /** Never spawn a wanderer while this many monsters are already alive. */
+  maxAlive: number;
+  /** Milliseconds between wander-spawn attempts. */
+  everyMs: number;
+}
+
 export interface Level {
   name: string;
   /** Visual theme id for the renderer (plan M10); defaults to 'brick'. */
@@ -106,6 +119,9 @@ export interface Level {
   start: { pos: Vec2; facing: Dir };
   /** Monster spawn placements; the World instantiates live monsters. */
   spawns: MonsterSpawn[];
+  /** If set, a capped trickle of wanderers spawns during exploration so the
+   * party can grind XP here (plan M12). */
+  wander?: WanderConfig;
 }
 
 export function cellIndex(level: Level, x: number, y: number): number {

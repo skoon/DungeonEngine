@@ -18,6 +18,7 @@ import { LogPanel } from './render/logPanel';
 import { buildPlacements, drawInventory, hitPlacement, navigate } from './render/inventoryOverlay';
 import { buildSpellEntries, drawSpellbook, hitEntry, navigateList, type SpellEntry } from './render/spellOverlay';
 import { buildTitleItems, drawTitle, hitTitle, type TitleItem } from './render/titleScreen';
+import { buildGameOverItems, drawGameOver, hitGameOver, type GameOverItem } from './render/gameOverScreen';
 import { buildControls, drawCreate, hitControl, type Control } from './render/createScreen';
 import {
   buildTownRows, drawTownOverlay, hitTownRow, type TownMode, type TownRow,
@@ -72,11 +73,33 @@ let swapSel: number | null = null; // formation-swap: first-picked card
 let mouse: { x: number; y: number } | null = null;
 
 // Title screen gates the start of play; New Game routes through creation.
-let mode: 'title' | 'create' | 'play' = 'title';
+// A total-party-kill flips to the game-over screen (plan M11).
+let mode: 'title' | 'create' | 'play' | 'gameover' = 'title';
 const title: { cursor: number; items: TitleItem[] } = { cursor: 0, items: buildTitleItems(hasSave()) };
+const gameOver: { cursor: number; items: GameOverItem[] } = { cursor: 0, items: [] };
 const creation: { members: CreationMember[]; focus: number; controls: Control[] } = {
   members: [], focus: 0, controls: buildControls(),
 };
+
+// The whole party falling ends the run. Guard on mode so the repeated
+// party/wiped emits (one per finishing blow) only trigger this once.
+bus.on('party/wiped', () => {
+  if (mode !== 'play') return;
+  inv.open = spellbook.open = townUi.open = false;
+  gameOver.items = buildGameOverItems(hasSave());
+  gameOver.cursor = 0;
+  mode = 'gameover';
+});
+
+function chooseGameOver(id: 'load' | 'title'): void {
+  if (id === 'load') {
+    loadGame();
+    mode = 'play';
+  } else {
+    // Fresh state is simplest and safest — reload back to the title screen.
+    window.location.reload();
+  }
+}
 
 function chooseTitle(id: 'new' | 'continue'): void {
   if (id === 'continue') {
@@ -288,6 +311,19 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
 
+  if (mode === 'gameover') {
+    if (ev.repeat) return;
+    const n = gameOver.items.length;
+    if (k === 'arrowup' || k === 'w') gameOver.cursor = (gameOver.cursor + n - 1) % n;
+    else if (k === 'arrowdown' || k === 's') gameOver.cursor = (gameOver.cursor + 1) % n;
+    else if (k === 'enter' || k === ' ') {
+      const it = gameOver.items[gameOver.cursor];
+      if (it?.enabled) chooseGameOver(it.id);
+    }
+    ev.preventDefault();
+    return;
+  }
+
   if (townUi.open) {
     handleTownKey(k);
     ev.preventDefault();
@@ -378,6 +414,11 @@ function onPointerDown(x: number, y: number): void {
     else if (c.kind === 'reroll') reroll(c.member);
     else if (c.kind === 'rerollAll') creation.members.forEach((_, i) => reroll(i));
     else if (c.kind === 'begin') beginParty();
+    return;
+  }
+  if (mode === 'gameover') {
+    const idx = hitGameOver(gameOver.items, x, y);
+    if (idx >= 0) chooseGameOver(gameOver.items[idx]!.id);
     return;
   }
   if (townUi.open) return onTownClick(x, y);
@@ -476,6 +517,11 @@ function renderFrame(): void {
   }
   if (mode === 'create') {
     drawCreate(ctx, creation.members, creation.controls, creation.focus);
+    screen.present();
+    return;
+  }
+  if (mode === 'gameover') {
+    drawGameOver(ctx, gameOver.items, gameOver.cursor);
     screen.present();
     return;
   }
