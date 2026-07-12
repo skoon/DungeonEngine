@@ -23,6 +23,19 @@ const cryptPack = (partyLevel: number, withBoss: boolean, startHpPct = 1): Match
   ],
 });
 
+// The final boss fight (plan M14): the lich, arriving slightly hurt, flanked by
+// two ghouls, fought in the open where its summons and soul bolts pile on.
+const finalFight = (partyLevel: number): Matchup => ({
+  label: 'final fight',
+  partyLevel,
+  arena: 'open',
+  startHpPct: 0.85,
+  enemies: [
+    { species: 'lich', count: 1 },
+    { species: 'ghoul', count: 2 },
+  ],
+});
+
 describe('balance report (M12)', () => {
   it('measures the key matchups', () => {
     const solo: Matchup[] = [
@@ -34,6 +47,12 @@ describe('balance report (M12)', () => {
       one('bone_lord', 1),
       one('bone_lord', 3),
       one('bone_lord', 4),
+      // M14 dungeon-3-to-5 species, read at their target party level.
+      one('ghoul', 3),
+      one('necromancer', 3),
+      one('necromancer', 4),
+      one('stone_golem', 4),
+      one('crypt_bat', 3),
     ];
     // Surround matchups: bosses/packs fought in the open room.
     const surround: Matchup[] = [
@@ -46,6 +65,12 @@ describe('balance report (M12)', () => {
       cryptPack(2, true), // does grinding to L2 make it survivable?
       cryptPack(3, true), // the target grind level
       cryptPack(4, true),
+      // M14 packs and the final boss fight.
+      { label: '3x ghoul', enemies: [{ species: 'ghoul', count: 3 }], partyLevel: 3, arena: 'open' },
+      { label: '4x crypt_bat', enemies: [{ species: 'crypt_bat', count: 4 }], partyLevel: 3, arena: 'open' },
+      { label: 'lich alone', enemies: [{ species: 'lich', count: 1 }], partyLevel: 5, arena: 'open' },
+      finalFight(5), // ~risky-but-doable at the intended arrival level
+      finalFight(6), // one grind level later it should be safe
     ];
     const rows = [...solo, ...surround].map((m) => runMatchup(m, 30));
     // eslint-disable-next-line no-console
@@ -74,5 +99,22 @@ describe('balance report (M12)', () => {
     // ...and the full crypt at L1 stays a death trap, so the "level up first"
     // gate holds (the Pillared Hall grind loop exists to close this gap).
     expect(at('crypt full', 1)).toBeLessThanOrEqual(0.35);
+
+    // M14 contract. The new dungeon-3-to-5 species are cleanly winnable at their
+    // target level (measured 100% at these seeds; guard the ≥90% design floor).
+    expect(at('ghoul', 3)).toBeGreaterThanOrEqual(0.9);
+    expect(at('3x ghoul', 3)).toBeGreaterThanOrEqual(0.9);
+    expect(at('necromancer', 3)).toBeGreaterThanOrEqual(0.9);
+    expect(at('necromancer', 4)).toBeGreaterThanOrEqual(0.9);
+    expect(at('stone_golem', 4)).toBeGreaterThanOrEqual(0.9);
+    expect(at('4x crypt_bat', 3)).toBeGreaterThanOrEqual(0.9);
+    // The lich on its own is a strong-but-fair capstone the party can outlast.
+    expect(at('lich alone', 5)).toBeGreaterThanOrEqual(0.9);
+
+    // The final boss fight is the point: a real coin-flip-ish gate at the intended
+    // arrival level (measured 70%), decisively won one grind level later (93%).
+    expect(at('final fight', 5)).toBeGreaterThanOrEqual(0.55);
+    expect(at('final fight', 5)).toBeLessThanOrEqual(0.8);
+    expect(at('final fight', 6)).toBeGreaterThanOrEqual(0.85);
   }, 60_000);
 });

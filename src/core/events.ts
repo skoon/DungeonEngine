@@ -43,7 +43,9 @@ export type GameEvent =
   | { type: 'char/raised'; member: number }
   | { type: 'char/replaced'; member: number }
   | { type: 'game/saved' }
-  | { type: 'game/loaded' };
+  | { type: 'game/loaded' }
+  /** The quest is complete: the McGuffin reached the victory shrine (plan M14). */
+  | { type: 'game/won' };
 
 export type EventType = GameEvent['type'];
 export type EventOf<T extends EventType> = Extract<GameEvent, { type: T }>;

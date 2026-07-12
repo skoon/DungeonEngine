@@ -897,6 +897,11 @@ export class World {
     }
     if (t.kind === 'altar') this.reviveAtAltar();
     if (t.kind === 'townhub' && t.service) this.enterTownService(t.service);
+    if (t.kind === 'victory' && t.requires && this.partyCarries(t.requires)) {
+      this.msg('loot', 'The seal drinks the amulet’s light — the gates swing wide!');
+      this.bus.emit({ type: 'game/won' });
+      return;
+    }
 
     if (t.onEnter) {
       this.run(t.onEnter);
@@ -906,6 +911,17 @@ export class World {
         this.enterCell({ ...after }, hops + 1);
       }
     }
+  }
+
+  /** Whether any living member carries an item with template id `id` in
+   * hands or backpack (plan M14 — the victory shrine's quest check). */
+  private partyCarries(id: string): boolean {
+    if (!this.roster) return false;
+    return this.roster.members.some(
+      (c) =>
+        !c.conditions.has('dead') &&
+        [...c.hands, ...c.backpack].some((it) => it?.tpl.id === id),
+    );
   }
 
   private run(actions: Action[]): void {

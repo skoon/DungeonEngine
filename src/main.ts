@@ -19,6 +19,7 @@ import { buildPlacements, drawInventory, hitPlacement, navigate } from './render
 import { buildSpellEntries, drawSpellbook, hitEntry, navigateList, type SpellEntry } from './render/spellOverlay';
 import { buildTitleItems, drawTitle, hitTitle, type TitleItem } from './render/titleScreen';
 import { buildGameOverItems, drawGameOver, hitGameOver, type GameOverItem } from './render/gameOverScreen';
+import { buildVictoryItems, drawVictory, hitVictory, type VictoryItem } from './render/victoryScreen';
 import { buildControls, drawCreate, hitControl, type Control } from './render/createScreen';
 import {
   buildTownRows, drawTownOverlay, hitTownRow, type TownMode, type TownRow,
@@ -73,10 +74,12 @@ let swapSel: number | null = null; // formation-swap: first-picked card
 let mouse: { x: number; y: number } | null = null;
 
 // Title screen gates the start of play; New Game routes through creation.
-// A total-party-kill flips to the game-over screen (plan M11).
-let mode: 'title' | 'create' | 'play' | 'gameover' = 'title';
+// A total-party-kill flips to the game-over screen (plan M11); delivering the
+// Amulet of Dawn to the sealed gates flips to the victory screen (plan M14).
+let mode: 'title' | 'create' | 'play' | 'gameover' | 'victory' = 'title';
 const title: { cursor: number; items: TitleItem[] } = { cursor: 0, items: buildTitleItems(hasSave()) };
 const gameOver: { cursor: number; items: GameOverItem[] } = { cursor: 0, items: [] };
+const victory: { cursor: number; items: VictoryItem[] } = { cursor: 0, items: [] };
 const creation: { members: CreationMember[]; focus: number; controls: Control[] } = {
   members: [], focus: 0, controls: buildControls(),
 };
@@ -97,6 +100,25 @@ function chooseGameOver(id: 'load' | 'title'): void {
     mode = 'play';
   } else {
     // Fresh state is simplest and safest — reload back to the title screen.
+    window.location.reload();
+  }
+}
+
+// Winning the quest ends the run on a high note (plan M14). Guard on mode so
+// re-stepping the seal can't re-trigger while the screen is already up.
+bus.on('game/won', () => {
+  if (mode !== 'play') return;
+  inv.open = spellbook.open = townUi.open = false;
+  victory.items = buildVictoryItems();
+  victory.cursor = 0;
+  mode = 'victory';
+});
+
+function chooseVictory(id: 'continue' | 'title'): void {
+  if (id === 'continue') {
+    // A victory lap: keep playing the winning party.
+    mode = 'play';
+  } else {
     window.location.reload();
   }
 }
@@ -324,6 +346,19 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
 
+  if (mode === 'victory') {
+    if (ev.repeat) return;
+    const n = victory.items.length;
+    if (k === 'arrowup' || k === 'w') victory.cursor = (victory.cursor + n - 1) % n;
+    else if (k === 'arrowdown' || k === 's') victory.cursor = (victory.cursor + 1) % n;
+    else if (k === 'enter' || k === ' ') {
+      const it = victory.items[victory.cursor];
+      if (it?.enabled) chooseVictory(it.id);
+    }
+    ev.preventDefault();
+    return;
+  }
+
   if (townUi.open) {
     handleTownKey(k);
     ev.preventDefault();
@@ -419,6 +454,11 @@ function onPointerDown(x: number, y: number): void {
   if (mode === 'gameover') {
     const idx = hitGameOver(gameOver.items, x, y);
     if (idx >= 0) chooseGameOver(gameOver.items[idx]!.id);
+    return;
+  }
+  if (mode === 'victory') {
+    const idx = hitVictory(victory.items, x, y);
+    if (idx >= 0) chooseVictory(victory.items[idx]!.id);
     return;
   }
   if (townUi.open) return onTownClick(x, y);
@@ -517,6 +557,11 @@ function renderFrame(): void {
   }
   if (mode === 'create') {
     drawCreate(ctx, creation.members, creation.controls, creation.focus);
+    screen.present();
+    return;
+  }
+  if (mode === 'victory') {
+    drawVictory(ctx, victory.items, victory.cursor);
     screen.present();
     return;
   }

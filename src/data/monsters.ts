@@ -1,6 +1,7 @@
 /**
- * Monster registry (plan M6). Two starter species: a dumb skeleton that
- * marches straight in, and a kobold that flees when badly hurt.
+ * Monster registry (plan M6/M13/M14). The bestiary, from the dumb skeleton that
+ * marches straight in through to the lich — the final boss that snipes soul
+ * bolts and raises the dead across two phases.
  */
 
 import type { MonsterSpecies } from '../core/monster';
@@ -136,6 +137,106 @@ export const BONE_LORD: MonsterSpecies = {
   loot: () => [item('short_sword'), item('potion_heal'), item('gem')],
 };
 
+export const GHOUL: MonsterSpecies = {
+  id: 'ghoul',
+  name: 'Ghoul',
+  glyph: 'G',
+  color: '#566c86',
+  maxHp: 24, // tougher and faster than a zombie
+  ac: 13,
+  attackBonus: 3,
+  damage: [1, 6],
+  moveMs: 500,
+  attackMs: 1300,
+  sight: 8,
+  xp: 28,
+  ai: 'dumb',
+  gold: [6, 16],
+  poison: 0.35, // filthy claws leave venom pressuring the party between camps (M13)
+};
+
+export const CRYPT_BAT: MonsterSpecies = {
+  id: 'crypt_bat',
+  name: 'Crypt Bat',
+  glyph: 'b',
+  color: '#333c57',
+  maxHp: 6, // swarm fodder — quick, fragile, keeps packs lively
+  ac: 13,
+  attackBonus: 2,
+  damage: [1, 3],
+  moveMs: 350, // flits about
+  attackMs: 1000,
+  sight: 7,
+  xp: 8,
+  ai: 'dumb',
+  gold: [0, 2],
+};
+
+export const NECROMANCER: MonsterSpecies = {
+  id: 'necromancer',
+  name: 'Necromancer',
+  glyph: 'N',
+  color: '#3b5dc9',
+  maxHp: 18,
+  ac: 13,
+  attackBonus: 4,
+  damage: [1, 6],
+  moveMs: 700,
+  attackMs: 1000, // looses shadow bolts briskly before the party closes
+  sight: 9,
+  xp: 40,
+  ai: 'smart',
+  fleeBelow: 0.3, // keeps its distance and bolts you down (M13)
+  gold: [20, 40],
+  ranged: { damage: [2, 8], range: 6, glyph: '*', color: '#5d275d', label: 'shadow bolt' },
+};
+
+export const STONE_GOLEM: MonsterSpecies = {
+  id: 'stone_golem',
+  name: 'Stone Golem',
+  glyph: 'O',
+  color: '#257179',
+  maxHp: 40, // slow tank gatekeeper — high hp/ac, hits hard
+  ac: 17,
+  attackBonus: 5,
+  damage: [2, 8],
+  moveMs: 1500,
+  attackMs: 2400,
+  sight: 6,
+  xp: 55,
+  ai: 'dumb',
+  // No gold (it's stone) but a gem is lodged in its core.
+  loot: () => [item('gem')],
+};
+
+export const LICH: MonsterSpecies = {
+  id: 'lich',
+  name: 'Lich',
+  glyph: 'L',
+  color: '#41a6f6',
+  maxHp: 58, // the final boss — every M13 system at once
+  ac: 17,
+  attackBonus: 5,
+  damage: [2, 8],
+  moveMs: 800,
+  attackMs: 1700,
+  sight: 10,
+  xp: 300,
+  ai: 'dumb', // relentless — never flees
+  gold: [200, 400],
+  // Snipes a soul bolt down clear lines, then twice reinforces the fight: at
+  // two-thirds HP it raises skeletons, and at a third raises more and enrages
+  // (declared high→low; each phase fires once). A setpiece, not a stat check.
+  ranged: { damage: [2, 8], range: 7, glyph: '*', color: '#41a6f6', label: 'soul bolt' },
+  phases: [
+    { atHpFrac: 0.66, summon: { species: SKELETON, count: 2 } },
+    { atHpFrac: 0.33, summon: { species: SKELETON, count: 2 }, speedMult: 0.8 },
+  ],
+  // The Amulet of Dawn is the quest McGuffin (plan M14): carry it back to the
+  // dawn-sealed gates on level 1 to win the game.
+  loot: () => [item('amulet_dawn'), item('potion_heal'), item('gem')],
+};
+
 export const MONSTERS: Record<string, MonsterSpecies> = {
   skeleton: SKELETON,
   kobold: KOBOLD,
@@ -144,4 +245,9 @@ export const MONSTERS: Record<string, MonsterSpecies> = {
   zombie: ZOMBIE,
   wraith: WRAITH,
   bone_lord: BONE_LORD,
+  ghoul: GHOUL,
+  crypt_bat: CRYPT_BAT,
+  necromancer: NECROMANCER,
+  stone_golem: STONE_GOLEM,
+  lich: LICH,
 };

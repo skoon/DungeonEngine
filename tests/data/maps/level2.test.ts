@@ -25,6 +25,7 @@ describe('level 2 — The Sunless Crypt (M10)', () => {
     expect(ids).toContain('giant_rat');
     expect(ids).toContain('cave_spider');
     expect(ids).toContain('zombie');
+    expect(ids).toContain('wraith');
     expect(ids).toContain('bone_lord');
     // The boss is not on the pit-landing cell.
     const boss = level.spawns.find((s) => s.species.id === 'bone_lord')!;
@@ -37,19 +38,28 @@ describe('level 2 — The Sunless Crypt (M10)', () => {
     expect(stairs?.kind).toBe('stairs');
     expect(stairs?.link).toEqual({ level: 0, pos: { x: 1, y: 1 }, facing: Dir.E });
   });
+
+  it('has a down-stair to the Catacombs beyond the Bone Lord (M14)', () => {
+    const down = cellTriggerAt(level, 10, 7);
+    expect(down?.kind).toBe('stairs');
+    expect(down?.link).toEqual({ level: 2, pos: { x: 1, y: 1 }, facing: Dir.E });
+  });
 });
 
 describe('monster registry (M10)', () => {
-  it('registers all seven species', () => {
-    expect(Object.keys(MONSTERS).sort()).toEqual(
-      ['bone_lord', 'cave_spider', 'giant_rat', 'kobold', 'skeleton', 'wraith', 'zombie'].sort(),
-    );
+  it('registers the original crypt-era species', () => {
+    // Subset check: the bestiary grows with new milestones (M14+); the full
+    // registry is audited in tests/data/monsters.test.ts.
+    const ids = Object.keys(MONSTERS);
+    for (const id of ['bone_lord', 'cave_spider', 'giant_rat', 'kobold', 'skeleton', 'wraith', 'zombie']) {
+      expect(ids).toContain(id);
+    }
   });
 });
 
 describe('dungeon maps', () => {
   it('all maps parse without error', () => {
-    expect(dungeonMaps).toHaveLength(3); // two dungeon floors + the Town Hub
+    expect(dungeonMaps).toHaveLength(6); // five dungeon floors + the Town Hub
     for (const m of dungeonMaps) expect(() => parseMap(m)).not.toThrow();
   });
 });

@@ -17,6 +17,9 @@ export const ITEMS: Record<string, ItemTemplate> = {
   iron_key: { id: 'iron_key', name: 'Iron Key', glyph: '~', color: '#ffcd75', slot: 'misc', weight: 1, keyId: 'iron' },
   torch: { id: 'torch', name: 'Torch', glyph: 'i', color: '#ffcd75', slot: 'misc', weight: 2 },
   gem: { id: 'gem', name: 'Sapphire', glyph: '*', color: '#41a6f6', slot: 'misc', weight: 1 },
+  // The quest McGuffin (plan M14): dropped by the Lich; carrying it to the
+  // dawn-sealed gates on level 1 wins the game.
+  amulet_dawn: { id: 'amulet_dawn', name: 'Amulet of Dawn', glyph: 'o', color: '#ffcd75', slot: 'misc', weight: 1 },
 };
 
 export function item(id: string, extra?: Partial<Item>): Item {

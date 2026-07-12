@@ -322,6 +322,16 @@ function drawFloorMarker(ctx: CanvasRenderingContext2D, kind: string, row: numbe
       ctx.fillStyle = SWEETIE16.lime;
       for (let i = -1; i <= 1; i++) ctx.fillRect(Math.round(c.x - r), Math.round(c.y + i * 3), Math.round(r * 2), 1);
       break;
+    case 'victory':
+      // The dawn seal: a golden ring with a bright core (plan M14).
+      ctx.strokeStyle = SWEETIE16.yellow;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, r * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = SWEETIE16.white;
+      ctx.fillRect(Math.round(c.x - 1), Math.round(c.y - 1), 3, 3);
+      break;
     default:
       break;
   }

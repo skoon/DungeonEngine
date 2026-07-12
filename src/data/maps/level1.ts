@@ -92,6 +92,16 @@ export const level1: MapSource = {
     { x: 4, y: 5, species: KOBOLD, facing: Dir.S },
   ],
   triggers: [
+    // The dawn-sealed gates (plan M14): the quest ends here. Stepping on the
+    // seal while carrying the Amulet of Dawn (the Lich's drop) wins the game.
+    {
+      x: 1,
+      y: 2,
+      kind: 'victory',
+      visible: true,
+      requires: 'amulet_dawn',
+      text: 'Dawn-runes seal the great gates. A round recess waits for something amulet-shaped.',
+    },
     {
       x: 3,
       y: 1,

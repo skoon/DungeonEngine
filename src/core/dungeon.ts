@@ -74,7 +74,7 @@ export interface EdgeWall {
  * couple of built-in behaviours (pit fall). Plates fire on enter and leave.
  */
 export interface CellTrigger {
-  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext' | 'altar' | 'townhub';
+  kind: 'plate' | 'teleporter' | 'spinner' | 'pit' | 'stairs' | 'walltext' | 'altar' | 'townhub' | 'victory';
   onEnter?: Action[];
   onLeave?: Action[];
   /** Whether the renderer draws a floor marker (hidden plates: false). */
@@ -84,6 +84,9 @@ export interface CellTrigger {
   link?: LevelLink;
   /** For a 'townhub' cell: which service it offers (plan M-DR4). */
   service?: TownService;
+  /** For a 'victory' cell: the item template id the party must carry to win
+   * (plan M14). Without it the cell just shows its hint text. */
+  requires?: string;
 }
 
 export interface LevelLink {
