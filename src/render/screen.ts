@@ -24,6 +24,8 @@ export class Screen {
     this.backbuffer.width = NATIVE_WIDTH;
     this.backbuffer.height = NATIVE_HEIGHT;
     this.ctx = get2d(this.backbuffer);
+    // Sprites scale nearest-neighbour; smoothing would blur pixel art.
+    this.ctx.imageSmoothingEnabled = false;
 
     this.display = document.createElement('canvas');
     container.appendChild(this.display);

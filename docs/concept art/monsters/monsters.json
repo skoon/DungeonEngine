@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "image": "monsters.png",
+    "size": { "w": 1024, "h": 1024 },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "orc_side_walk_tier1": { "x": 0, "y": 600, "w": 140, "h": 128, "frames": 2, "ms": 200 },
+    "orc_side_walk_tier2": { "x": 140, "y": 600, "w": 90, "h": 82, "frames": 2, "ms": 200 },
+    "orc_side_walk_tier3": { "x": 230, "y": 600, "w": 58, "h": 52, "frames": 2, "ms": 200 },
+    "orc_back_walk_tier1": { "x": 0, "y": 730, "w": 140, "h": 128, "frames": 2, "ms": 200 },
+    "orc_back_walk_tier2": { "x": 140, "y": 730, "w": 90, "h": 82, "frames": 2, "ms": 200 },
+    "orc_back_walk_tier3": { "x": 230, "y": 730, "w": 58, "h": 52, "frames": 2, "ms": 200 },
+    
+    "goblin_side_walk_tier1": { "x": 300, "y": 600, "w": 110, "h": 80, "frames": 2, "ms": 150 },
+    "goblin_side_walk_tier2": { "x": 410, "y": 600, "w": 70, "h": 52, "frames": 2, "ms": 150 },
+    "goblin_side_walk_tier3": { "x": 480, "y": 600, "w": 40, "h": 36, "frames": 2, "ms": 150 },
+    "goblin_back_walk_tier1": { "x": 300, "y": 730, "w": 110, "h": 80, "frames": 2, "ms": 150 },
+    "goblin_back_walk_tier2": { "x": 410, "y": 730, "w": 70, "h": 52, "frames": 2, "ms": 150 },
+    "goblin_back_walk_tier3": { "x": 480, "y": 730, "w": 40, "h": 36, "frames": 2, "ms": 150 },
+    
+    "skeleton_side_walk_tier1": { "x": 550, "y": 600, "w": 140, "h": 128, "frames": 2, "ms": 250 },
+    "skeleton_side_walk_tier2": { "x": 690, "y": 600, "w": 90, "h": 82, "frames": 2, "ms": 250 },
+    "skeleton_side_walk_tier3": { "x": 780, "y": 600, "w": 58, "h": 52, "frames": 2, "ms": 250 },
+    "skeleton_back_walk_tier1": { "x": 550, "y": 730, "w": 140, "h": 128, "frames": 2, "ms": 250 },
+    "skeleton_back_walk_tier2": { "x": 690, "y": 730, "w": 90, "h": 82, "frames": 2, "ms": 250 },
+    "skeleton_back_walk_tier3": { "x": 780, "y": 730, "w": 58, "h": 52, "frames": 2, "ms": 250 }
+  }
+}   

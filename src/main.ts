@@ -34,6 +34,7 @@ import {
 } from './render/layout';
 import { GameAudio } from './audio/audio';
 import { bindKeyboard } from './input/input';
+import { loadSprites, sprites } from './render/sprites';
 import { startLoop } from './loop';
 
 const container = document.getElementById('app');
@@ -49,6 +50,11 @@ world.setTown(TOWN_INDEX, TOWN_ENTRANCE.pos, TOWN_ENTRANCE.facing); // Town Port
 const logPanel = new LogPanel(bus);
 const audio = new GameAudio();
 audio.attach(bus);
+
+// Sprite atlases load in the background; every draw site falls back to
+// procedural art until (and unless) its frames arrive, so boot never blocks
+// on assets (sprite plan T1.3).
+loadSprites().catch((e: unknown) => console.error('[sprites] load failed', e));
 
 // The active level changes as the party descends; `level` tracks it for
 // coordinate-space lookups (inventory ground, etc.).
@@ -627,5 +633,6 @@ if (import.meta.env.DEV) {
     __audio: audio,
     __mode: () => mode,
     __creation: creation,
+    __sprites: sprites,
   });
 }

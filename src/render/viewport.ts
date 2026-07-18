@@ -16,6 +16,15 @@ import type { Projectile } from '../core/projectile';
 import { SWEETIE16 } from './palette';
 import { getTileset, type Tileset } from './tilesets';
 import { drawItemIcon } from './itemIcon';
+import { frameWidth } from './atlas';
+import { sprites } from './sprites';
+import {
+  monsterFrame,
+  monsterPose,
+  projectileFrame,
+  wallFrontFrame,
+  wallSideFrame,
+} from './spriteKeys';
 import { text } from './text';
 import { buildScene, maxLat, ROWS, type WallSlot } from './scene';
 import {
@@ -35,6 +44,8 @@ import {
 // by the draw helpers (rendering is single-threaded, so a module-level ref is
 // simpler than threading it through every call).
 let ts: Tileset = getTileset('brick');
+// The tileset id, for atlas frame names (brick_front_0 …).
+let tsId = 'brick';
 
 interface Pose {
   pos: Vec2;
@@ -58,6 +69,7 @@ export function drawViewport(
   const monsters = opts.monsters ?? [];
   const projectiles = opts.projectiles ?? [];
   ts = getTileset(level.tileset);
+  tsId = level.tileset;
 
   ctx.save();
   ctx.beginPath();
@@ -81,7 +93,7 @@ export function drawViewport(
     drawSlot(ctx, level, pose.facing, slot, opts.lit ?? false);
     const key = `${slot.cell.x},${slot.cell.y}`;
     const m = monsterByCell.get(key);
-    if (m && slot.row <= 3) drawMonster(ctx, slot.row, slot.lat, m);
+    if (m && slot.row <= 3) drawMonster(ctx, slot.row, slot.lat, m, pose.facing);
     const ps = projByCell.get(key);
     if (ps && slot.row <= 3) for (const p of ps) drawProjectile(ctx, slot.row, slot.lat, p);
   }
@@ -124,13 +136,13 @@ function drawSlot(
   if (slot.left) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnLeft(facing));
     const q = sideQuad(slot.row, slot.lat, 'left');
-    drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill);
+    drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill, slot.row, e?.kind === 'door');
     if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
   }
   if (slot.right) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnRight(facing));
     const q = sideQuad(slot.row, slot.lat, 'right');
-    drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill);
+    drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill, slot.row, e?.kind === 'door');
     if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
   }
   if (slot.front) {
@@ -139,7 +151,7 @@ function drawSlot(
     if (e?.kind === 'door') {
       drawFrontDoor(ctx, r, e, slot.row);
     } else {
-      drawFrontFace(ctx, r, frontFill);
+      drawFrontFace(ctx, r, frontFill, slot.row);
       decorate(ctx, { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }, e, lit);
     }
   }
@@ -147,7 +159,7 @@ function drawSlot(
 
 // -- Wall faces ------------------------------------------------------------
 
-function drawFrontFace(ctx: CanvasRenderingContext2D, r: FrontRect, fill: string): void {
+function drawFrontFace(ctx: CanvasRenderingContext2D, r: FrontRect, fill: string, row: number): void {
   const x0 = Math.round(r.x0);
   const x1 = Math.round(r.x1);
   const y0 = Math.round(r.y0);
@@ -155,6 +167,8 @@ function drawFrontFace(ctx: CanvasRenderingContext2D, r: FrontRect, fill: string
   const w = x1 - x0;
   const h = y1 - y0;
   if (w <= 0 || h <= 0) return;
+
+  if (sprites.draw(ctx, wallFrontFrame(tsId, row), x0, y0, w, h)) return;
 
   ctx.fillStyle = fill;
   ctx.fillRect(x0, y0, w, h);
@@ -177,7 +191,23 @@ function drawFrontFace(ctx: CanvasRenderingContext2D, r: FrontRect, fill: string
   ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
 }
 
-function drawSideFace(ctx: CanvasRenderingContext2D, q: SideQuad, fill: string): void {
+function drawSideFace(ctx: CanvasRenderingContext2D, q: SideQuad, fill: string, row: number, isDoor = false): void {
+  // Sprite side faces are trapezoids baked into a rectangular frame's alpha,
+  // authored with the tall (near) edge on the RIGHT (a wall on the viewer's
+  // right receding toward centre). When this quad's near edge is on the left,
+  // mirror. Door side faces keep the procedural fill until door art exists.
+  if (!isDoor) {
+    const x = Math.min(q.nearX, q.farX);
+    const w = Math.abs(q.nearX - q.farX);
+    const h = q.nearBot - q.nearTop;
+    if (
+      w >= 1 &&
+      sprites.draw(ctx, wallSideFrame(tsId, row), x, q.nearTop, w, h, { mirror: q.nearX < q.farX })
+    ) {
+      return;
+    }
+  }
+
   ctx.beginPath();
   ctx.moveTo(q.nearX, q.nearTop);
   ctx.lineTo(q.farX, q.farTop);
@@ -208,7 +238,7 @@ function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWa
   // unless Detect Secret has revealed it, which draws a faint dashed hint
   // without giving away exactly how to open it.
   if (edge.door?.secret && progress <= 0.001) {
-    drawFrontFace(ctx, r, ts.front[row] ?? SWEETIE16.navy);
+    drawFrontFace(ctx, r, ts.front[row] ?? SWEETIE16.navy, row);
     if (edge.detected) drawDetectedHint(ctx, r);
     return;
   }
@@ -339,13 +369,31 @@ function drawFloorMarker(ctx: CanvasRenderingContext2D, kind: string, row: numbe
 
 const MONSTER_H = [128, 82, 52, 36];
 
-function drawMonster(ctx: CanvasRenderingContext2D, row: number, lat: number, m: Monster): void {
+function drawMonster(ctx: CanvasRenderingContext2D, row: number, lat: number, m: Monster, viewFacing: Dir): void {
   const foot = centroid(floorQuad(row, lat));
   const h = MONSTER_H[row] ?? 30;
   const w = h * 0.55;
   const cx = foot.x;
   const top = foot.y - h;
   const body = m.flash > 0 ? SWEETIE16.red : m.species.color;
+
+  // Sprite billboard: pose picked from the monster's facing relative to the
+  // party's, tier from the depth row, anchored at the feet. Falls back to
+  // the exact pose → side → procedural blob (sprite plan P3).
+  const key = m.species.spriteKey;
+  if (key) {
+    const pv = monsterPose(m.facing, viewFacing);
+    const name = [monsterFrame(key, pv.pose, row), monsterFrame(key, 'side', row)].find((n) => sprites.has(n));
+    const def = name ? sprites.frame(name) : undefined;
+    if (name && def) {
+      const dh = h;
+      const dw = (frameWidth(def) * dh) / def.h;
+      const drawOpts = m.flash > 0 ? { mirror: pv.mirror, tint: SWEETIE16.red } : { mirror: pv.mirror };
+      sprites.draw(ctx, name, cx - dw / 2, foot.y - dh, dw, dh, drawOpts);
+      drawMonsterHp(ctx, cx, top, w, m);
+      return;
+    }
+  }
 
   // Body + head, outlined.
   ctx.fillStyle = body;
@@ -362,7 +410,11 @@ function drawMonster(ctx: CanvasRenderingContext2D, row: number, lat: number, m:
 
   text(ctx, m.species.glyph, Math.round(cx - 2), Math.round(top + h * 0.16), SWEETIE16.black);
 
-  // HP pip above the head.
+  drawMonsterHp(ctx, cx, top, w, m);
+}
+
+/** HP pip above the head — shared by the sprite and procedural billboards. */
+function drawMonsterHp(ctx: CanvasRenderingContext2D, cx: number, top: number, w: number, m: Monster): void {
   const bw = w * 0.9;
   const ratio = Math.max(0, m.hp.cur / m.hp.max);
   ctx.fillStyle = SWEETIE16.ink;
@@ -379,6 +431,9 @@ function drawProjectile(ctx: CanvasRenderingContext2D, row: number, lat: number,
   const size = PROJECTILE_SIZE[row] ?? 4;
   // Flies at roughly chest height: partway from floor back up to the horizon.
   const y = c.y - (c.y - HORIZON) * 0.55;
+
+  if (sprites.draw(ctx, projectileFrame(p.label, row), c.x - size / 2, y - size / 2, size, size)) return;
+
   ctx.fillStyle = p.color;
   ctx.strokeStyle = SWEETIE16.black;
   ctx.fillRect(Math.round(c.x - size / 2), Math.round(y - size / 2), size, size);

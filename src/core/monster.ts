@@ -64,6 +64,11 @@ export interface MonsterSpecies {
   phases?: PhaseSpec[];
   /** Loot dropped on death. */
   loot?: () => Item[];
+  /**
+   * Atlas sprite family (`<key>_<pose>_walk_tier<row>` frames). Species
+   * without one keep the procedural billboard (sprite plan P3).
+   */
+  spriteKey?: string;
 }
 
 export interface Monster {

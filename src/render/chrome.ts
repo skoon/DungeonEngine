@@ -8,11 +8,20 @@
 
 import { COLORS } from './palette';
 import { LOG, PARTY, VIEWPORT, type Rect } from './layout';
+import { sprites } from './sprites';
 import { text } from './text';
 
 const BORDER = 3;
 
 function panelFrame(ctx: CanvasRenderingContext2D, r: Rect): void {
+  // 9-slice sprite chrome when loaded; the content well is always filled
+  // flat so panel drawers render on a predictable background.
+  if (sprites.drawNineSlice(ctx, 'ui_chrome_frame', r.x, r.y, r.w, r.h)) {
+    ctx.fillStyle = COLORS.contentBg;
+    ctx.fillRect(r.x + BORDER, r.y + BORDER, r.w - 2 * BORDER, r.h - 2 * BORDER);
+    return;
+  }
+
   // Border base.
   ctx.fillStyle = COLORS.frameFace;
   ctx.fillRect(r.x, r.y, r.w, r.h);

@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "image": "items.png",
+    "size": { "w": 1024, "h": 1024 },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "item_dagger":         { "x": 0,   "y": 860, "w": 16, "h": 16 },
+    "item_sword":          { "x": 16,  "y": 860, "w": 16, "h": 16 },
+    "item_bow":            { "x": 32,  "y": 860, "w": 16, "h": 16 },
+    "item_gold_pile":      { "x": 48,  "y": 860, "w": 16, "h": 16 },
+    "item_bundle_of_food": { "x": 64,  "y": 860, "w": 16, "h": 16 },
+    "item_armor":          { "x": 80,  "y": 860, "w": 16, "h": 16 },
+    "item_jewels":         { "x": 96,  "y": 860, "w": 16, "h": 16 }
+  }
+}

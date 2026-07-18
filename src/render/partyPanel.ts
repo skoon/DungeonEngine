@@ -13,6 +13,8 @@ import { COLORS, CLASS_COLOR, SWEETIE16 } from './palette';
 import { CLASSES } from '../data/classes';
 import { COMPASS, PARTY_CARDS, type Rect } from './layout';
 import { drawItemIcon, drawSlotBox } from './itemIcon';
+import { sprites } from './sprites';
+import { portraitFrame } from './spriteKeys';
 import { text } from './text';
 
 const COND_ICON: Record<string, string> = {
@@ -65,7 +67,12 @@ function drawCard(ctx: CanvasRenderingContext2D, r: Rect, c: Character, hurt: bo
   ctx.fillRect(px, py, 26, 26);
   ctx.strokeStyle = accent;
   ctx.strokeRect(px + 0.5, py + 0.5, 25, 25);
-  text(ctx, c.name.charAt(0), px + 10, py + 9, accent);
+  // 24×24 portrait sprite centred in the 26px card box; initial-letter
+  // fallback until portrait art is loaded.
+  const drew = down
+    ? sprites.draw(ctx, portraitFrame(c.portrait), px + 1, py + 1, 24, 24, { grayscale: true })
+    : sprites.draw(ctx, portraitFrame(c.portrait), px + 1, py + 1, 24, 24);
+  if (!drew) text(ctx, c.name.charAt(0), px + 10, py + 9, accent);
 
   const tx = px + 34;
   text(ctx, c.name, tx, py, down ? COLORS.textDim : COLORS.text);

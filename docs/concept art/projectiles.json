@@ -1,0 +1,14 @@
+"projectile_dagger_tier0": { "x": 0,   "y": 952, "w": 11, "h": 11 },
+    "projectile_dagger_tier1": { "x": 11,  "y": 952, "w": 8,  "h": 8 },
+    "projectile_dagger_tier2": { "x": 19,  "y": 952, "w": 6,  "h": 6 },
+    "projectile_dagger_tier3": { "x": 25,  "y": 952, "w": 4,  "h": 4 },
+
+    "projectile_bolt_tier0":   { "x": 30,  "y": 952, "w": 11, "h": 11 },
+    "projectile_bolt_tier1":   { "x": 41,  "y": 952, "w": 8,  "h": 8 },
+    "projectile_bolt_tier2":   { "x": 49,  "y": 952, "w": 6,  "h": 6 },
+    "projectile_bolt_tier3":   { "x": 55,  "y": 952, "w": 4,  "h": 4 },
+
+    "projectile_stone_tier0":  { "x": 60,  "y": 952, "w": 11, "h": 11 },
+    "projectile_stone_tier1":  { "x": 71,  "y": 952, "w": 8,  "h": 8 },
+    "projectile_stone_tier2":  { "x": 79,  "y": 952, "w": 6,  "h": 6 },
+    "projectile_stone_tier3":  { "x": 85,  "y": 952, "w": 4,  "h": 4 }
