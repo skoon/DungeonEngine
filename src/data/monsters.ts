@@ -42,6 +42,7 @@ export const KOBOLD: MonsterSpecies = {
   fleeBelow: 0.34,
   gold: [3, 12],
   loot: () => [item('dagger')],
+  spriteKey: 'kobold',
 };
 
 export const GIANT_RAT: MonsterSpecies = {

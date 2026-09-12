@@ -3,7 +3,7 @@
     "image": "monsters.png",
     "size": {
       "w": 140,
-      "h": 894
+      "h": 1788
     },
     "palette": "sweetie-16"
   },
@@ -99,6 +99,102 @@
     "skeleton_back_walk_tier3": {
       "x": 0,
       "y": 858,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_front_walk_tier0": {
+      "x": 0,
+      "y": 894,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_front_walk_tier1": {
+      "x": 0,
+      "y": 1022,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_front_walk_tier2": {
+      "x": 0,
+      "y": 1104,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_front_walk_tier3": {
+      "x": 0,
+      "y": 1156,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_side_walk_tier0": {
+      "x": 0,
+      "y": 1192,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_side_walk_tier1": {
+      "x": 0,
+      "y": 1320,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_side_walk_tier2": {
+      "x": 0,
+      "y": 1402,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_side_walk_tier3": {
+      "x": 0,
+      "y": 1454,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_back_walk_tier0": {
+      "x": 0,
+      "y": 1490,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_back_walk_tier1": {
+      "x": 0,
+      "y": 1618,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_back_walk_tier2": {
+      "x": 0,
+      "y": 1700,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "kobold_back_walk_tier3": {
+      "x": 0,
+      "y": 1752,
       "w": 40,
       "h": 36,
       "frames": 2,
