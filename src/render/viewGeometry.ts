@@ -57,6 +57,15 @@ export function frontRect(row: number, lat: number): FrontRect {
   };
 }
 
+/**
+ * Depth of cell `row`'s near plane. Row 0's true near plane (Z=-0.5) sits
+ * behind the eye, so it is clamped to NEAR — anything nearer projects at an
+ * unbounded scale.
+ */
+export function nearDepth(row: number): number {
+  return Math.max(row - 0.5, NEAR);
+}
+
 export interface SideQuad {
   nearX: number;
   farX: number;
@@ -73,7 +82,7 @@ export interface SideQuad {
  */
 export function sideQuad(row: number, lat: number, side: 'left' | 'right'): SideQuad {
   const e = side === 'left' ? lat - 0.5 : lat + 0.5;
-  const nearZ = Math.max(row - 0.5, NEAR);
+  const nearZ = nearDepth(row);
   const farZ = row + 0.5;
   return {
     nearX: gridX(nearZ, e),
@@ -90,16 +99,30 @@ export interface Point {
   y: number;
 }
 
-/** The four floor corners of cell (row, lat), for floor markers/decals. */
-export function floorQuad(row: number, lat: number): [Point, Point, Point, Point] {
-  const nearZ = Math.max(row - 0.5, NEAR);
+/** Corners of one horizontal cell face (floor or ceiling), near edge first. */
+function cellQuad(
+  row: number,
+  lat: number,
+  yAt: (z: number) => number,
+): [Point, Point, Point, Point] {
+  const nearZ = nearDepth(row);
   const farZ = row + 0.5;
   return [
-    { x: gridX(nearZ, lat - 0.5), y: floorY(nearZ) },
-    { x: gridX(nearZ, lat + 0.5), y: floorY(nearZ) },
-    { x: gridX(farZ, lat + 0.5), y: floorY(farZ) },
-    { x: gridX(farZ, lat - 0.5), y: floorY(farZ) },
+    { x: gridX(nearZ, lat - 0.5), y: yAt(nearZ) },
+    { x: gridX(nearZ, lat + 0.5), y: yAt(nearZ) },
+    { x: gridX(farZ, lat + 0.5), y: yAt(farZ) },
+    { x: gridX(farZ, lat - 0.5), y: yAt(farZ) },
   ];
+}
+
+/** The four floor corners of cell (row, lat), for paving, markers and decals. */
+export function floorQuad(row: number, lat: number): [Point, Point, Point, Point] {
+  return cellQuad(row, lat, floorY);
+}
+
+/** The four ceiling corners of cell (row, lat) — floorQuad's mirror overhead. */
+export function ceilQuad(row: number, lat: number): [Point, Point, Point, Point] {
+  return cellQuad(row, lat, ceilY);
 }
 
 export function centroid(pts: readonly Point[]): Point {

@@ -29,7 +29,7 @@ After a species atlas lands, its `MonsterSpecies.spriteKey` in
 
 ## Remaining environment art
 
-- Wall atlases for `crypt`, `catacomb`, and `sanctum`, front and right-side
+- [x] Wall atlases for `crypt`, `catacomb`, and `sanctum`, front and right-side
   faces at depth rows 0–3.
 - Animated portcullis/door art for all four wall sets. Doors currently stay
   procedural even when wall sprites are present.
@@ -79,5 +79,5 @@ Hands, Shield, Cure Wounds, Light, Detect Secret, and Town Portal.
 2. Zombie, wraith, bone lord, ghoul, and crypt bat.
 3. Necromancer, stone golem, and lich.
 4. The 11 item icons and five projectile families.
-5. The three remaining hallway sets, then doors and environmental details.
+5. Doors and environmental details.
 6. Portraits, UI chrome, and optional spell-effect polish.

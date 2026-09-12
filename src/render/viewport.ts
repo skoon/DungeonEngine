@@ -1,9 +1,10 @@
 /**
- * First-person viewport compositor (plan §4/§5). Painter's algorithm: fill
- * the ceiling and floor, then draw each visible cell back-to-front — floor
- * trigger marker, side walls, front wall — so nearer geometry overwrites
- * farther. Walls are procedurally-shaded brick; doors, buttons, levers, wall
- * text and floor triggers get their own simple programmer-art treatments.
+ * First-person viewport compositor (plan §4/§5). Painter's algorithm: lay down
+ * the ceiling and floor fog bands, then draw each visible cell back-to-front —
+ * paved ceiling and floor, trigger marker, side walls, front wall — so nearer
+ * geometry overwrites farther. Walls are procedurally-shaded brick; doors,
+ * buttons, levers, wall text and floor triggers get their own simple
+ * programmer-art treatments.
  *
  * Depth fog is palette bands per row (near/mid/far), not alpha (§2.4).
  */
@@ -31,9 +32,14 @@ import {
   CONTENT,
   CX,
   HORIZON,
+  ceilQuad,
+  ceilY,
   centroid,
   floorQuad,
+  floorY,
   frontRect,
+  gridX,
+  nearDepth,
   sideQuad,
   type FrontRect,
   type Point,
@@ -115,6 +121,21 @@ function band(ctx: CanvasRenderingContext2D, y0: number, y1: number, colors: str
     ctx.fillStyle = c;
     ctx.fillRect(CONTENT.x, Math.round(y0 + i * h), CONTENT.w, Math.ceil(h) + 1);
   });
+  // Soften each hard band edge into the next tone. Depth fog is palette-only
+  // (§2.4), so the ramp is dithered rather than blended.
+  for (let i = 1; i < colors.length; i++) {
+    ditherSeam(ctx, Math.round(y0 + i * h), colors[i - 1]!, colors[i]!);
+  }
+}
+
+/** A 2px-period checkerboard straddling a fog-band boundary: the classic
+ * palette-safe stand-in for a gradient. */
+function ditherSeam(ctx: CanvasRenderingContext2D, y: number, above: string, below: string): void {
+  const right = CONTENT.x + CONTENT.w;
+  ctx.fillStyle = below;
+  for (let x = CONTENT.x; x < right; x += 2) ctx.fillRect(x, y - 1, 1, 1);
+  ctx.fillStyle = above;
+  for (let x = CONTENT.x + 1; x < right; x += 2) ctx.fillRect(x, y, 1, 1);
 }
 
 function drawSlot(
@@ -124,6 +145,9 @@ function drawSlot(
   slot: WallSlot,
   lit: boolean,
 ): void {
+  paveCell(ctx, slot, 'floor');
+  paveCell(ctx, slot, 'ceiling');
+
   const t = cellTriggerAt(level, slot.cell.x, slot.cell.y);
   if (t && t.visible !== false) drawFloorMarker(ctx, t.kind, slot.row, slot.lat);
 
@@ -155,6 +179,50 @@ function drawSlot(
       decorate(ctx, { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }, e, lit);
     }
   }
+}
+
+// -- Ceiling & floor paving ------------------------------------------------
+
+/**
+ * Flagstone paving for one visible cell's floor or ceiling: a perspective-
+ * correct quad filled with its depth tone, outlined in mortar, and — on the two
+ * near rows, where there are pixels to spare — split into a 2x2 course of slabs.
+ *
+ * The light/dark alternation is keyed to the *world* cell rather than the
+ * frustum slot, so the checker stays bolted to the dungeon as the party walks
+ * instead of swimming along with the camera.
+ */
+function paveCell(ctx: CanvasRenderingContext2D, slot: WallSlot, surface: 'floor' | 'ceiling'): void {
+  const isFloor = surface === 'floor';
+  const yAt = isFloor ? floorY : ceilY;
+  // Fog runs opposite ways: the floor darkens toward your feet, the ceiling
+  // toward the horizon — same order as the bands beneath (drawCeilingFloor).
+  const tones = isFloor ? ts.floor : ts.ceiling;
+  const depth = isFloor ? 2 - slot.row : slot.row;
+  const alt = ((slot.cell.x + slot.cell.y) & 1) === 1;
+  const quad = isFloor ? floorQuad(slot.row, slot.lat) : ceilQuad(slot.row, slot.lat);
+
+  polygon(ctx, quad, rampTone(tones, depth, alt), ts.mortar);
+  if (slot.row > 1) return; // far slabs are a few px deep — more seams is just noise
+
+  // Seams sit on the cell's real mid-planes. The quad's screen midpoints would
+  // bow under row 0's foreshortening; these project like everything else does.
+  const nearZ = nearDepth(slot.row);
+  const farZ = slot.row + 0.5;
+  const midZ = (nearZ + farZ) / 2;
+  ctx.strokeStyle = ts.mortar;
+  ctx.lineWidth = 1;
+  line(ctx, gridX(midZ, slot.lat - 0.5), yAt(midZ), gridX(midZ, slot.lat + 0.5), yAt(midZ));
+  line(ctx, gridX(nearZ, slot.lat), yAt(nearZ), gridX(farZ, slot.lat), yAt(farZ));
+}
+
+/** Entry `idx` of a tileset ramp, clamped. `alt` steps one further along it
+ * (back at the far end) so the paving checker always gets two distinct tones. */
+function rampTone(tones: readonly string[], idx: number, alt: boolean): string {
+  const last = tones.length - 1;
+  const i = Math.max(0, Math.min(last, idx));
+  if (!alt) return tones[i]!;
+  return tones[i + 1 <= last ? i + 1 : i - 1] ?? tones[i]!;
 }
 
 // -- Wall faces ------------------------------------------------------------
