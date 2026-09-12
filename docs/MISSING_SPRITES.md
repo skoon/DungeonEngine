@@ -1,8 +1,9 @@
 # Missing sprite inventory
 
 Updated 2026-09-12 from the live registries and renderer. The reddish-brown
-`brick` hallway atlas is now present in `public/assets/walls/`; everything
-below still falls back to procedural art or glyphs.
+`brick` hallway atlas is now present in `public/assets/walls/`. Skeleton art is
+now present in `public/assets/monsters/`; everything below still falls back to
+procedural art or glyphs.
 
 ## Monsters (highest priority)
 
@@ -10,7 +11,7 @@ Each species needs front, side, and back walk art at tiers 0–3. Side art is
 authored facing right and mirrored by the engine. A complete species is 12
 atlas frames (animation strips may contain 2–4 frames).
 
-- `skeleton`
+- [x] `skeleton`
 - `kobold`
 - `giant_rat`
 - `cave_spider`

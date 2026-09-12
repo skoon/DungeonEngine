@@ -22,6 +22,7 @@ export const SKELETON: MonsterSpecies = {
   xp: 12,
   ai: 'dumb',
   gold: [2, 8],
+  spriteKey: 'skeleton',
 };
 
 export const KOBOLD: MonsterSpecies = {
