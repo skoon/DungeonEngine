@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "image": "details.png",
+    "size": {
+      "w": 280,
+      "h": 40
+    },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "detail_button": {
+      "x": 0,
+      "y": 0,
+      "w": 40,
+      "h": 40
+    },
+    "detail_lever": {
+      "x": 40,
+      "y": 0,
+      "w": 40,
+      "h": 40
+    },
+    "detail_alcove": {
+      "x": 80,
+      "y": 0,
+      "w": 40,
+      "h": 40
+    },
+    "detail_inscription": {
+      "x": 120,
+      "y": 0,
+      "w": 40,
+      "h": 40
+    },
+    "detail_secret_hint": {
+      "x": 160,
+      "y": 0,
+      "w": 40,
+      "h": 40
+    },
+    "detail_illusion_shimmer": {
+      "x": 200,
+      "y": 0,
+      "w": 80,
+      "h": 40,
+      "frames": 2,
+      "ms": 180
+    }
+  }
+}

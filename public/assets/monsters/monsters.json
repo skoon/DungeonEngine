@@ -3,7 +3,7 @@
     "image": "monsters.png",
     "size": {
       "w": 140,
-      "h": 1788
+      "h": 10728
     },
     "palette": "sweetie-16"
   },
@@ -195,6 +195,966 @@
     "kobold_back_walk_tier3": {
       "x": 0,
       "y": 1752,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_front_walk_tier0": {
+      "x": 0,
+      "y": 1788,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_front_walk_tier1": {
+      "x": 0,
+      "y": 1916,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_front_walk_tier2": {
+      "x": 0,
+      "y": 1998,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_front_walk_tier3": {
+      "x": 0,
+      "y": 2050,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_side_walk_tier0": {
+      "x": 0,
+      "y": 2086,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_side_walk_tier1": {
+      "x": 0,
+      "y": 2214,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_side_walk_tier2": {
+      "x": 0,
+      "y": 2296,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_side_walk_tier3": {
+      "x": 0,
+      "y": 2348,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_back_walk_tier0": {
+      "x": 0,
+      "y": 2384,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_back_walk_tier1": {
+      "x": 0,
+      "y": 2512,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_back_walk_tier2": {
+      "x": 0,
+      "y": 2594,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "giant_rat_back_walk_tier3": {
+      "x": 0,
+      "y": 2646,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_front_walk_tier0": {
+      "x": 0,
+      "y": 2682,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_front_walk_tier1": {
+      "x": 0,
+      "y": 2810,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_front_walk_tier2": {
+      "x": 0,
+      "y": 2892,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_front_walk_tier3": {
+      "x": 0,
+      "y": 2944,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_side_walk_tier0": {
+      "x": 0,
+      "y": 2980,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_side_walk_tier1": {
+      "x": 0,
+      "y": 3108,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_side_walk_tier2": {
+      "x": 0,
+      "y": 3190,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_side_walk_tier3": {
+      "x": 0,
+      "y": 3242,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_back_walk_tier0": {
+      "x": 0,
+      "y": 3278,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_back_walk_tier1": {
+      "x": 0,
+      "y": 3406,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_back_walk_tier2": {
+      "x": 0,
+      "y": 3488,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "cave_spider_back_walk_tier3": {
+      "x": 0,
+      "y": 3540,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_front_walk_tier0": {
+      "x": 0,
+      "y": 3576,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_front_walk_tier1": {
+      "x": 0,
+      "y": 3704,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_front_walk_tier2": {
+      "x": 0,
+      "y": 3786,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_front_walk_tier3": {
+      "x": 0,
+      "y": 3838,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_side_walk_tier0": {
+      "x": 0,
+      "y": 3874,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_side_walk_tier1": {
+      "x": 0,
+      "y": 4002,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_side_walk_tier2": {
+      "x": 0,
+      "y": 4084,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_side_walk_tier3": {
+      "x": 0,
+      "y": 4136,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_back_walk_tier0": {
+      "x": 0,
+      "y": 4172,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_back_walk_tier1": {
+      "x": 0,
+      "y": 4300,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_back_walk_tier2": {
+      "x": 0,
+      "y": 4382,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "zombie_back_walk_tier3": {
+      "x": 0,
+      "y": 4434,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_front_walk_tier0": {
+      "x": 0,
+      "y": 4470,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_front_walk_tier1": {
+      "x": 0,
+      "y": 4598,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_front_walk_tier2": {
+      "x": 0,
+      "y": 4680,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_front_walk_tier3": {
+      "x": 0,
+      "y": 4732,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_side_walk_tier0": {
+      "x": 0,
+      "y": 4768,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_side_walk_tier1": {
+      "x": 0,
+      "y": 4896,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_side_walk_tier2": {
+      "x": 0,
+      "y": 4978,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_side_walk_tier3": {
+      "x": 0,
+      "y": 5030,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_back_walk_tier0": {
+      "x": 0,
+      "y": 5066,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_back_walk_tier1": {
+      "x": 0,
+      "y": 5194,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_back_walk_tier2": {
+      "x": 0,
+      "y": 5276,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "wraith_back_walk_tier3": {
+      "x": 0,
+      "y": 5328,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_front_walk_tier0": {
+      "x": 0,
+      "y": 5364,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_front_walk_tier1": {
+      "x": 0,
+      "y": 5492,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_front_walk_tier2": {
+      "x": 0,
+      "y": 5574,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_front_walk_tier3": {
+      "x": 0,
+      "y": 5626,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_side_walk_tier0": {
+      "x": 0,
+      "y": 5662,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_side_walk_tier1": {
+      "x": 0,
+      "y": 5790,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_side_walk_tier2": {
+      "x": 0,
+      "y": 5872,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_side_walk_tier3": {
+      "x": 0,
+      "y": 5924,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_back_walk_tier0": {
+      "x": 0,
+      "y": 5960,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_back_walk_tier1": {
+      "x": 0,
+      "y": 6088,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_back_walk_tier2": {
+      "x": 0,
+      "y": 6170,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "bone_lord_back_walk_tier3": {
+      "x": 0,
+      "y": 6222,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_front_walk_tier0": {
+      "x": 0,
+      "y": 6258,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_front_walk_tier1": {
+      "x": 0,
+      "y": 6386,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_front_walk_tier2": {
+      "x": 0,
+      "y": 6468,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_front_walk_tier3": {
+      "x": 0,
+      "y": 6520,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_side_walk_tier0": {
+      "x": 0,
+      "y": 6556,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_side_walk_tier1": {
+      "x": 0,
+      "y": 6684,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_side_walk_tier2": {
+      "x": 0,
+      "y": 6766,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_side_walk_tier3": {
+      "x": 0,
+      "y": 6818,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_back_walk_tier0": {
+      "x": 0,
+      "y": 6854,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_back_walk_tier1": {
+      "x": 0,
+      "y": 6982,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_back_walk_tier2": {
+      "x": 0,
+      "y": 7064,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "ghoul_back_walk_tier3": {
+      "x": 0,
+      "y": 7116,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_front_walk_tier0": {
+      "x": 0,
+      "y": 7152,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_front_walk_tier1": {
+      "x": 0,
+      "y": 7280,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_front_walk_tier2": {
+      "x": 0,
+      "y": 7362,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_front_walk_tier3": {
+      "x": 0,
+      "y": 7414,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_side_walk_tier0": {
+      "x": 0,
+      "y": 7450,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_side_walk_tier1": {
+      "x": 0,
+      "y": 7578,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_side_walk_tier2": {
+      "x": 0,
+      "y": 7660,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_side_walk_tier3": {
+      "x": 0,
+      "y": 7712,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_back_walk_tier0": {
+      "x": 0,
+      "y": 7748,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_back_walk_tier1": {
+      "x": 0,
+      "y": 7876,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_back_walk_tier2": {
+      "x": 0,
+      "y": 7958,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "crypt_bat_back_walk_tier3": {
+      "x": 0,
+      "y": 8010,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_front_walk_tier0": {
+      "x": 0,
+      "y": 8046,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_front_walk_tier1": {
+      "x": 0,
+      "y": 8174,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_front_walk_tier2": {
+      "x": 0,
+      "y": 8256,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_front_walk_tier3": {
+      "x": 0,
+      "y": 8308,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_side_walk_tier0": {
+      "x": 0,
+      "y": 8344,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_side_walk_tier1": {
+      "x": 0,
+      "y": 8472,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_side_walk_tier2": {
+      "x": 0,
+      "y": 8554,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_side_walk_tier3": {
+      "x": 0,
+      "y": 8606,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_back_walk_tier0": {
+      "x": 0,
+      "y": 8642,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_back_walk_tier1": {
+      "x": 0,
+      "y": 8770,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_back_walk_tier2": {
+      "x": 0,
+      "y": 8852,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "necromancer_back_walk_tier3": {
+      "x": 0,
+      "y": 8904,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_front_walk_tier0": {
+      "x": 0,
+      "y": 8940,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_front_walk_tier1": {
+      "x": 0,
+      "y": 9068,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_front_walk_tier2": {
+      "x": 0,
+      "y": 9150,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_front_walk_tier3": {
+      "x": 0,
+      "y": 9202,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_side_walk_tier0": {
+      "x": 0,
+      "y": 9238,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_side_walk_tier1": {
+      "x": 0,
+      "y": 9366,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_side_walk_tier2": {
+      "x": 0,
+      "y": 9448,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_side_walk_tier3": {
+      "x": 0,
+      "y": 9500,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_back_walk_tier0": {
+      "x": 0,
+      "y": 9536,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_back_walk_tier1": {
+      "x": 0,
+      "y": 9664,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_back_walk_tier2": {
+      "x": 0,
+      "y": 9746,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "stone_golem_back_walk_tier3": {
+      "x": 0,
+      "y": 9798,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_front_walk_tier0": {
+      "x": 0,
+      "y": 9834,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_front_walk_tier1": {
+      "x": 0,
+      "y": 9962,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_front_walk_tier2": {
+      "x": 0,
+      "y": 10044,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_front_walk_tier3": {
+      "x": 0,
+      "y": 10096,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_side_walk_tier0": {
+      "x": 0,
+      "y": 10132,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_side_walk_tier1": {
+      "x": 0,
+      "y": 10260,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_side_walk_tier2": {
+      "x": 0,
+      "y": 10342,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_side_walk_tier3": {
+      "x": 0,
+      "y": 10394,
+      "w": 40,
+      "h": 36,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_back_walk_tier0": {
+      "x": 0,
+      "y": 10430,
+      "w": 140,
+      "h": 128,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_back_walk_tier1": {
+      "x": 0,
+      "y": 10558,
+      "w": 90,
+      "h": 82,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_back_walk_tier2": {
+      "x": 0,
+      "y": 10640,
+      "w": 58,
+      "h": 52,
+      "frames": 2,
+      "ms": 250
+    },
+    "lich_back_walk_tier3": {
+      "x": 0,
+      "y": 10692,
       "w": 40,
       "h": 36,
       "frames": 2,

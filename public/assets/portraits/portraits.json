@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "image": "portraits.png",
+    "size": {
+      "w": 96,
+      "h": 96
+    },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "portrait_human_m_young": {
+      "x": 0,
+      "y": 0,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_human_m_old": {
+      "x": 24,
+      "y": 0,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_human_f_young": {
+      "x": 48,
+      "y": 0,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_human_f_old": {
+      "x": 72,
+      "y": 0,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_elf_m_young": {
+      "x": 0,
+      "y": 24,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_elf_m_old": {
+      "x": 24,
+      "y": 24,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_elf_f_young": {
+      "x": 48,
+      "y": 24,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_elf_f_old": {
+      "x": 72,
+      "y": 24,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_dwarf_m_young": {
+      "x": 0,
+      "y": 48,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_dwarf_m_old": {
+      "x": 24,
+      "y": 48,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_dwarf_f_young": {
+      "x": 48,
+      "y": 48,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_dwarf_f_old": {
+      "x": 72,
+      "y": 48,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_halfling_m_young": {
+      "x": 0,
+      "y": 72,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_halfling_m_old": {
+      "x": 24,
+      "y": 72,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_halfling_f_young": {
+      "x": 48,
+      "y": 72,
+      "w": 24,
+      "h": 24
+    },
+    "portrait_halfling_f_old": {
+      "x": 72,
+      "y": 72,
+      "w": 24,
+      "h": 24
+    }
+  }
+}

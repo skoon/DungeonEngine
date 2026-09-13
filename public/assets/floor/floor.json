@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "image": "floor.png",
+    "size": {
+      "w": 384,
+      "h": 64
+    },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "floor_pit": {
+      "x": 0,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "floor_plate": {
+      "x": 64,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "floor_teleporter": {
+      "x": 128,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "floor_altar": {
+      "x": 192,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "floor_stairs": {
+      "x": 256,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    },
+    "floor_victory": {
+      "x": 320,
+      "y": 0,
+      "w": 64,
+      "h": 64
+    }
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "image": "projectiles.png",
+    "size": {
+      "w": 29,
+      "h": 55
+    },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "projectile_dagger_tier0": {
+      "x": 0,
+      "y": 0,
+      "w": 11,
+      "h": 11
+    },
+    "projectile_dagger_tier1": {
+      "x": 11,
+      "y": 0,
+      "w": 8,
+      "h": 8
+    },
+    "projectile_dagger_tier2": {
+      "x": 19,
+      "y": 0,
+      "w": 6,
+      "h": 6
+    },
+    "projectile_dagger_tier3": {
+      "x": 25,
+      "y": 0,
+      "w": 4,
+      "h": 4
+    },
+    "projectile_magic_missile_tier0": {
+      "x": 0,
+      "y": 11,
+      "w": 11,
+      "h": 11
+    },
+    "projectile_magic_missile_tier1": {
+      "x": 11,
+      "y": 11,
+      "w": 8,
+      "h": 8
+    },
+    "projectile_magic_missile_tier2": {
+      "x": 19,
+      "y": 11,
+      "w": 6,
+      "h": 6
+    },
+    "projectile_magic_missile_tier3": {
+      "x": 25,
+      "y": 11,
+      "w": 4,
+      "h": 4
+    },
+    "projectile_chill_bolt_tier0": {
+      "x": 0,
+      "y": 22,
+      "w": 11,
+      "h": 11
+    },
+    "projectile_chill_bolt_tier1": {
+      "x": 11,
+      "y": 22,
+      "w": 8,
+      "h": 8
+    },
+    "projectile_chill_bolt_tier2": {
+      "x": 19,
+      "y": 22,
+      "w": 6,
+      "h": 6
+    },
+    "projectile_chill_bolt_tier3": {
+      "x": 25,
+      "y": 22,
+      "w": 4,
+      "h": 4
+    },
+    "projectile_shadow_bolt_tier0": {
+      "x": 0,
+      "y": 33,
+      "w": 11,
+      "h": 11
+    },
+    "projectile_shadow_bolt_tier1": {
+      "x": 11,
+      "y": 33,
+      "w": 8,
+      "h": 8
+    },
+    "projectile_shadow_bolt_tier2": {
+      "x": 19,
+      "y": 33,
+      "w": 6,
+      "h": 6
+    },
+    "projectile_shadow_bolt_tier3": {
+      "x": 25,
+      "y": 33,
+      "w": 4,
+      "h": 4
+    },
+    "projectile_soul_bolt_tier0": {
+      "x": 0,
+      "y": 44,
+      "w": 11,
+      "h": 11
+    },
+    "projectile_soul_bolt_tier1": {
+      "x": 11,
+      "y": 44,
+      "w": 8,
+      "h": 8
+    },
+    "projectile_soul_bolt_tier2": {
+      "x": 19,
+      "y": 44,
+      "w": 6,
+      "h": 6
+    },
+    "projectile_soul_bolt_tier3": {
+      "x": 25,
+      "y": 44,
+      "w": 4,
+      "h": 4
+    }
+  }
+}

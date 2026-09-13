@@ -11,9 +11,13 @@ export interface Tileset {
   front: [string, string, string, string];
   /** Side-face fill per depth row. */
   side: [string, string, string, string];
-  /** Ceiling bands, top -> horizon. */
+  /**
+   * Fog bands behind the paving, ordered **near -> far** like {@link front} and
+   * {@link side} (so the darkest entry is always the far one). drawCeilingFloor
+   * maps them to screen: the ceiling recedes downward to the horizon, the floor
+   * upward to meet it.
+   */
   ceiling: [string, string, string];
-  /** Floor bands, horizon -> feet. */
   floor: [string, string, string];
   mortar: string;
   door: string;
@@ -23,7 +27,7 @@ export interface Tileset {
 const BRICK: Tileset = {
   front: [SWEETIE16.gray, SWEETIE16.slate, SWEETIE16.ink, SWEETIE16.navy],
   side: [SWEETIE16.slate, SWEETIE16.ink, SWEETIE16.navy, SWEETIE16.black],
-  ceiling: [SWEETIE16.black, SWEETIE16.navy, SWEETIE16.ink],
+  ceiling: [SWEETIE16.ink, SWEETIE16.navy, SWEETIE16.black],
   floor: [SWEETIE16.slate, SWEETIE16.ink, SWEETIE16.black],
   mortar: SWEETIE16.black,
   door: SWEETIE16.teal,
@@ -34,7 +38,7 @@ const BRICK: Tileset = {
 const CRYPT: Tileset = {
   front: [SWEETIE16.gray, SWEETIE16.slate, SWEETIE16.teal, SWEETIE16.ink],
   side: [SWEETIE16.slate, SWEETIE16.teal, SWEETIE16.navy, SWEETIE16.black],
-  ceiling: [SWEETIE16.black, SWEETIE16.navy, SWEETIE16.teal],
+  ceiling: [SWEETIE16.teal, SWEETIE16.navy, SWEETIE16.black],
   floor: [SWEETIE16.teal, SWEETIE16.ink, SWEETIE16.black],
   mortar: SWEETIE16.black,
   door: SWEETIE16.green,
@@ -47,7 +51,7 @@ const CRYPT: Tileset = {
 const CATACOMB: Tileset = {
   front: [SWEETIE16.yellow, SWEETIE16.orange, SWEETIE16.red, SWEETIE16.purple],
   side: [SWEETIE16.orange, SWEETIE16.red, SWEETIE16.purple, SWEETIE16.black],
-  ceiling: [SWEETIE16.black, SWEETIE16.purple, SWEETIE16.red],
+  ceiling: [SWEETIE16.red, SWEETIE16.purple, SWEETIE16.black],
   floor: [SWEETIE16.orange, SWEETIE16.purple, SWEETIE16.black],
   mortar: SWEETIE16.black,
   door: SWEETIE16.purple,
@@ -60,7 +64,7 @@ const CATACOMB: Tileset = {
 const SANCTUM: Tileset = {
   front: [SWEETIE16.azure, SWEETIE16.blue, SWEETIE16.navy, SWEETIE16.ink],
   side: [SWEETIE16.blue, SWEETIE16.navy, SWEETIE16.ink, SWEETIE16.black],
-  ceiling: [SWEETIE16.black, SWEETIE16.navy, SWEETIE16.blue],
+  ceiling: [SWEETIE16.blue, SWEETIE16.navy, SWEETIE16.black],
   floor: [SWEETIE16.blue, SWEETIE16.navy, SWEETIE16.black],
   mortar: SWEETIE16.black,
   door: SWEETIE16.cyan,

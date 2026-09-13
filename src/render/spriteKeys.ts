@@ -78,3 +78,18 @@ export function wallFrontFrame(tileset: string, row: number): string {
 export function wallSideFrame(tileset: string, row: number): string {
   return `${tileset}_side_${row}`;
 }
+
+/** Atlas frame name for a floor trigger marker. */
+export function floorMarkerFrame(kind: string): string {
+  return `floor_${kind}`;
+}
+
+/** Atlas frame name for a themed front-facing portcullis. */
+export function doorFrame(tileset: string): string {
+  return `${tileset}_door`;
+}
+
+/** Atlas frame name for a wall-mounted detail or effect. */
+export function detailFrame(kind: string): string {
+  return `detail_${kind}`;
+}

@@ -2,9 +2,8 @@
  * First-person viewport compositor (plan §4/§5). Painter's algorithm: lay down
  * the ceiling and floor fog bands, then draw each visible cell back-to-front —
  * paved ceiling and floor, trigger marker, side walls, front wall — so nearer
- * geometry overwrites farther. Walls are procedurally-shaded brick; doors,
- * buttons, levers, wall text and floor triggers get their own simple
- * programmer-art treatments.
+ * geometry overwrites farther. Authored wall, door, detail and floor-marker
+ * sprites are preferred, with compact programmer-art fallbacks.
  *
  * Depth fog is palette bands per row (near/mid/far), not alpha (§2.4).
  */
@@ -22,6 +21,9 @@ import { sprites } from './sprites';
 import {
   monsterFrame,
   monsterPose,
+  floorMarkerFrame,
+  doorFrame,
+  detailFrame,
   projectileFrame,
   wallFrontFrame,
   wallSideFrame,
@@ -111,8 +113,12 @@ export function drawViewport(
 
 function drawCeilingFloor(ctx: CanvasRenderingContext2D): void {
   const bottom = CONTENT.y + CONTENT.h;
+  // Both ramps run near->far. On screen the ceiling recedes downward from
+  // overhead to the horizon, so it draws in order; the floor recedes upward to
+  // meet it, so its bands are laid bottom-up. Getting this backwards is what
+  // paints the stone at your feet black.
   band(ctx, CONTENT.y, HORIZON, ts.ceiling);
-  band(ctx, HORIZON, bottom, ts.floor);
+  band(ctx, HORIZON, bottom, [...ts.floor].reverse());
 }
 
 function band(ctx: CanvasRenderingContext2D, y0: number, y1: number, colors: string[]): void {
@@ -161,13 +167,13 @@ function drawSlot(
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnLeft(facing));
     const q = sideQuad(slot.row, slot.lat, 'left');
     drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill, slot.row, e?.kind === 'door');
-    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
+    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit, slot.row);
   }
   if (slot.right) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, turnRight(facing));
     const q = sideQuad(slot.row, slot.lat, 'right');
     drawSideFace(ctx, q, e?.kind === 'door' ? ts.door : sideFill, slot.row, e?.kind === 'door');
-    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit);
+    if (e?.kind !== 'door') decorate(ctx, centroid(sideCorners(q)), e, lit, slot.row);
   }
   if (slot.front) {
     const e = edgeAt(level, slot.cell.x, slot.cell.y, facing);
@@ -176,7 +182,7 @@ function drawSlot(
       drawFrontDoor(ctx, r, e, slot.row);
     } else {
       drawFrontFace(ctx, r, frontFill, slot.row);
-      decorate(ctx, { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }, e, lit);
+      decorate(ctx, { x: (r.x0 + r.x1) / 2, y: (r.y0 + r.y1) / 2 }, e, lit, slot.row);
     }
   }
 }
@@ -195,14 +201,15 @@ function drawSlot(
 function paveCell(ctx: CanvasRenderingContext2D, slot: WallSlot, surface: 'floor' | 'ceiling'): void {
   const isFloor = surface === 'floor';
   const yAt = isFloor ? floorY : ceilY;
-  // Fog runs opposite ways: the floor darkens toward your feet, the ceiling
-  // toward the horizon — same order as the bands beneath (drawCeilingFloor).
-  const tones = isFloor ? ts.floor : ts.ceiling;
-  const depth = isFloor ? 2 - slot.row : slot.row;
+  // Slabs are cut from the wall ramps, not the fog bands: those have one entry
+  // per depth row (so row indexes them directly) and the floor reads as the same
+  // stone as the walls around it. The vault takes `side`, a step darker than the
+  // floor's `front`, since a torch lights what you walk on, not the roof.
+  const tones = isFloor ? ts.front : ts.side;
   const alt = ((slot.cell.x + slot.cell.y) & 1) === 1;
   const quad = isFloor ? floorQuad(slot.row, slot.lat) : ceilQuad(slot.row, slot.lat);
 
-  polygon(ctx, quad, rampTone(tones, depth, alt), ts.mortar);
+  polygon(ctx, quad, rampTone(tones, slot.row, alt), ts.mortar);
   if (slot.row > 1) return; // far slabs are a few px deep — more seams is just noise
 
   // Seams sit on the cell's real mid-planes. The quad's screen midpoints would
@@ -218,7 +225,7 @@ function paveCell(ctx: CanvasRenderingContext2D, slot: WallSlot, surface: 'floor
 
 /** Entry `idx` of a tileset ramp, clamped. `alt` steps one further along it
  * (back at the far end) so the paving checker always gets two distinct tones. */
-function rampTone(tones: readonly string[], idx: number, alt: boolean): string {
+export function rampTone(tones: readonly string[], idx: number, alt: boolean): string {
   const last = tones.length - 1;
   const i = Math.max(0, Math.min(last, idx));
   if (!alt) return tones[i]!;
@@ -263,7 +270,8 @@ function drawSideFace(ctx: CanvasRenderingContext2D, q: SideQuad, fill: string, 
   // Sprite side faces are trapezoids baked into a rectangular frame's alpha,
   // authored with the tall (near) edge on the RIGHT (a wall on the viewer's
   // right receding toward centre). When this quad's near edge is on the left,
-  // mirror. Door side faces keep the procedural fill until door art exists.
+  // mirror. Door side faces keep their procedural fill until matching side art
+  // is authored; front door faces use the themed door atlas below.
   if (!isDoor) {
     const x = Math.min(q.nearX, q.farX);
     const w = Math.abs(q.nearX - q.farX);
@@ -321,6 +329,17 @@ function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWa
   // Portcullis retracts upward: visible panel shrinks from the bottom.
   const bottom = Math.round(y1 - progress * h);
   if (bottom > y0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x0, y0, w, bottom - y0);
+    ctx.clip();
+    const authored = sprites.draw(ctx, doorFrame(tsId), x0, y0, w, h);
+    ctx.restore();
+    if (authored) {
+      ctx.strokeStyle = ts.mortar;
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
+      return;
+    }
     ctx.fillStyle = ts.door;
     ctx.fillRect(x0, y0, w, bottom - y0);
     ctx.fillStyle = ts.mortar;
@@ -336,10 +355,20 @@ function drawFrontDoor(ctx: CanvasRenderingContext2D, r: FrontRect, edge: EdgeWa
 
 // -- Decals: buttons, levers, engraved text --------------------------------
 
-function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | undefined, lit: boolean): void {
+function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | undefined, lit: boolean, row: number): void {
+  const drawDetail = (kind: string, widthScale = 1, heightScale = 1): boolean => {
+    const rowScale = [1, 0.72, 0.52, 0.38][row] ?? 0.38;
+    const width = Math.max(5, 32 * rowScale * widthScale);
+    const height = Math.max(4, 32 * rowScale * heightScale);
+    return sprites.draw(ctx, detailFrame(kind), at.x - width / 2, at.y - height / 2, width, height);
+  };
+
   if (edge?.kind === 'illusion') {
-    if (edge.detected) drawDetectedHint(ctx, { x0: at.x - 8, x1: at.x + 8, y0: at.y - 8, y1: at.y + 8 });
+    if (edge.detected && !drawDetail('secret_hint')) {
+      drawDetectedHint(ctx, { x0: at.x - 8, x1: at.x + 8, y0: at.y - 8, y1: at.y + 8 });
+    }
     if (lit) {
+      if (drawDetail('illusion_shimmer')) return;
       // A faint shimmer — light gives illusions away.
       ctx.fillStyle = SWEETIE16.cyan;
       const t = (Date.now() / 120) % 4;
@@ -350,25 +379,31 @@ function decorate(ctx: CanvasRenderingContext2D, at: Point, edge: EdgeWall | und
   }
   if (edge?.interact) {
     if (edge.interact.kind === 'button') {
+      if (drawDetail('button')) return;
       ctx.fillStyle = SWEETIE16.yellow;
       ctx.fillRect(Math.round(at.x) - 3, Math.round(at.y) - 3, 6, 6);
       ctx.strokeStyle = ts.mortar;
       ctx.strokeRect(Math.round(at.x) - 3.5, Math.round(at.y) - 3.5, 6, 6);
     } else {
+      if (drawDetail('lever', 0.8, 1.2)) return;
       ctx.fillStyle = SWEETIE16.orange;
       ctx.fillRect(Math.round(at.x) - 1, Math.round(at.y) - 5, 3, 10);
       ctx.fillStyle = SWEETIE16.yellow;
       ctx.fillRect(Math.round(at.x) - 2, Math.round(at.y) - 6, 5, 3);
     }
   } else if (edge?.alcove && edge.alcove.length > 0) {
+    const authored = drawDetail('alcove', 1.1, 1.1);
     // A recessed niche with its contents peeking out.
-    ctx.fillStyle = SWEETIE16.black;
-    ctx.fillRect(Math.round(at.x) - 7, Math.round(at.y) - 7, 14, 14);
-    ctx.strokeStyle = SWEETIE16.ink;
-    ctx.strokeRect(Math.round(at.x) - 7.5, Math.round(at.y) - 7.5, 15, 15);
+    if (!authored) {
+      ctx.fillStyle = SWEETIE16.black;
+      ctx.fillRect(Math.round(at.x) - 7, Math.round(at.y) - 7, 14, 14);
+      ctx.strokeStyle = SWEETIE16.ink;
+      ctx.strokeRect(Math.round(at.x) - 7.5, Math.round(at.y) - 7.5, 15, 15);
+    }
     const first = edge.alcove[0];
     if (first) drawItemIcon(ctx, first, Math.round(at.x) - 6, Math.round(at.y) - 6, 12);
   } else if (edge?.text) {
+    if (drawDetail('inscription', 1.2, 0.7)) return;
     ctx.fillStyle = SWEETIE16.gray;
     for (let i = 0; i < 3; i++) ctx.fillRect(Math.round(at.x) - 5, Math.round(at.y) - 3 + i * 3, 10, 1);
   }
@@ -390,6 +425,23 @@ function drawFloorMarker(ctx: CanvasRenderingContext2D, kind: string, row: numbe
   const q = floorQuad(row, lat);
   const c = centroid(q);
   const r = Math.max(3, (q[1].x - q[0].x) * 0.18);
+
+  // Prefer authored top-down marker art, clipped to the projected floor cell;
+  // the procedural shapes below remain a graceful fallback while an atlas is
+  // loading or when a future trigger kind has no sprite yet.
+  const markerW = Math.min(CONTENT.w * 0.8, Math.max(4, r * 1.8));
+  const markerH = Math.max(3, markerW * 0.62);
+  ctx.save();
+  ctx.beginPath();
+  q.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.closePath();
+  ctx.clip();
+  if (sprites.draw(ctx, floorMarkerFrame(kind), c.x - markerW / 2, c.y - markerH / 2, markerW, markerH)) {
+    ctx.restore();
+    return;
+  }
+  ctx.restore();
+
   switch (kind) {
     case 'pit':
       polygon(ctx, quadInset(q, 0.12), SWEETIE16.black, SWEETIE16.ink);

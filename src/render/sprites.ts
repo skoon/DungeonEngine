@@ -29,6 +29,10 @@ const ATLAS_URLS = [
   'assets/walls/walls.json',
   'assets/monsters/monsters.json',
   'assets/items/items.json',
+  'assets/floor/floor.json',
+  'assets/doors/doors.json',
+  'assets/details/details.json',
+  'assets/portraits/portraits.json',
   'assets/ui/frames.json',
   'assets/projectiles/projectiles.json',
 ];

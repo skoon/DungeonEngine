@@ -3,25 +3,25 @@
 Plan for wiring the new `assets/` PNG + JSON sprite sheets into the engine,
 replacing the procedural programmer-art in the renderer. Written 2026-07-18
 after auditing the assets and the render code. **Status: engine side (T0.3 +
-Phases 1–5 wiring) implemented 2026-07-18; awaiting sourced art for Phase 0.
-Atlases drop into `public/assets/` — see the README there.**
+Phases 1–5 wiring) implemented; normalized atlases for monsters, walls, doors,
+details, floor markers, items, projectiles, portraits, and UI chrome are now
+in `public/assets/`.**
 
-> **Decision (2026-07-18):** the AI-generated sheets in `assets/` are
-> **concept art only** — no extraction pipeline. Scott will source real
-> sprites separately. Phase 0 below is now the spec any incoming sprite pack
-> must meet to drop into the loader.
+> **Decision:** generated source sheets are treated as art direction, then
+> normalized into true 1× pixel atlases with real alpha and palette mapping.
+> The checked-in atlases below are the loader-ready output.
 
 ---
 
 ## 1. Asset audit — what's actually in `assets/`
 
-Four PNGs with JSON atlases: `walls/`, `monsters/`, `items/`, `ui/`, plus a
-stray `assets/projectiles.json`.
+Loader-ready PNG/JSON atlases now cover `walls/`, `monsters/`, `floor/`,
+`doors/`, `details/`, `items/`, `projectiles/`, `portraits/`, and `ui/`.
 
-### 1.1 Blocking problems
+### 1.1 Historical audit notes
 
-The sheets are AI-generated **reference/concept sheets**, not machine-readable
-atlases. They cannot be consumed by a loader as-is:
+The original concept sheets were reference material rather than machine-readable
+atlases. They were normalized into the checked-in atlases during sprite prep:
 
 1. **Dimensions don't match.** Every PNG is **2816×1536**; every JSON `meta`
    claims 1024×512 or 1024×1024. The JSON frame rectangles were authored
@@ -59,19 +59,16 @@ atlases. They cannot be consumed by a loader as-is:
 | Projectiles | none (JSON fragment only) | dagger, bolt, stone at 11/8/6/4 px | All projectile art missing. |
 | UI chrome | 4 framed 9-slice styles on the ui sheet; JSON describes only one 24×24 frame with 3px slices | 3 pane frames ([chrome.ts](../src/render/chrome.ts)) | Usable once extracted. |
 
-**Conclusion:** there is a mandatory asset-preparation phase before any engine
-work pays off. The engine work (Phases 1–6) is designed so it can proceed in
-parallel using placeholder atlases, with per-sprite fallback to the existing
-procedural art, so partial art coverage is never a blocker.
+**Conclusion:** asset preparation is complete for the current sprite inventory.
+The engine still keeps procedural fallbacks so a missing or malformed category
+never prevents the game from running.
 
 ---
 
 ## 2. Phase 0 — Asset acquisition spec (no engine code)
 
-The current sheets are shelved as concept art (suggest moving them to
-`assets/concept/` so the loader's directories stay clean — needs Scott's OK).
-Real sprites will be sourced externally. Any incoming pack must be normalized
-to this spec before (or as part of) dropping it in:
+Incoming or regenerated art must continue to be normalized to this spec before
+being dropped into the loader:
 
 - **T0.1 — Normalize to engine sizes** (from `docs/CREATING_SPRITES.md`):
   true 1× pixel scale, hard edges, PNG with real alpha, sweetie-16 palette
@@ -130,8 +127,9 @@ The hook point the docs already promise.
   (right-authored; mirrored variant for left) positioned on the quad's
   bounding box — the trapezoid shape comes from the sprite's alpha. Keep the
   procedural path for tilesets without art.
-- **T2.3 — Doors stay procedural** for now (portcullis animation by
-  `progress` works well); a sprite door is a later, separate task.
+- **T2.3 — Themed door faces.** `drawFrontDoor()` samples the matching
+  `"<tileset>_door"` frame and clips it to the animated `progress` opening;
+  missing art keeps the procedural portcullis fallback.
 
 ## 5. Phase 3 — Monsters
 

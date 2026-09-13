@@ -60,6 +60,7 @@ export const GIANT_RAT: MonsterSpecies = {
   xp: 4,
   ai: 'dumb',
   gold: [0, 3],
+  spriteKey: 'giant_rat',
 };
 
 export const CAVE_SPIDER: MonsterSpecies = {
@@ -79,6 +80,7 @@ export const CAVE_SPIDER: MonsterSpecies = {
   fleeBelow: 0.25,
   gold: [4, 10],
   poison: 0.5, // half its bites leave venom that chips HP between fights (M13)
+  spriteKey: 'cave_spider',
 };
 
 export const ZOMBIE: MonsterSpecies = {
@@ -96,6 +98,7 @@ export const ZOMBIE: MonsterSpecies = {
   xp: 16,
   ai: 'dumb',
   gold: [5, 15],
+  spriteKey: 'zombie',
 };
 
 export const WRAITH: MonsterSpecies = {
@@ -114,6 +117,7 @@ export const WRAITH: MonsterSpecies = {
   ai: 'smart',
   fleeBelow: 0.2,
   gold: [10, 25],
+  spriteKey: 'wraith',
   // Snipes down corridors with a chill bolt when it has a clear line (M13).
   ranged: { damage: [1, 6], range: 6, glyph: '*', color: '#73eff7', label: 'chill bolt' },
 };
@@ -137,6 +141,7 @@ export const BONE_LORD: MonsterSpecies = {
   // setpiece turn instead of a stat check (plan M13).
   phases: [{ atHpFrac: 0.5, summon: { species: SKELETON, count: 2 }, speedMult: 0.9 }],
   loot: () => [item('short_sword'), item('potion_heal'), item('gem')],
+  spriteKey: 'bone_lord',
 };
 
 export const GHOUL: MonsterSpecies = {
@@ -155,6 +160,7 @@ export const GHOUL: MonsterSpecies = {
   ai: 'dumb',
   gold: [6, 16],
   poison: 0.35, // filthy claws leave venom pressuring the party between camps (M13)
+  spriteKey: 'ghoul',
 };
 
 export const CRYPT_BAT: MonsterSpecies = {
@@ -172,6 +178,7 @@ export const CRYPT_BAT: MonsterSpecies = {
   xp: 8,
   ai: 'dumb',
   gold: [0, 2],
+  spriteKey: 'crypt_bat',
 };
 
 export const NECROMANCER: MonsterSpecies = {
@@ -190,6 +197,7 @@ export const NECROMANCER: MonsterSpecies = {
   ai: 'smart',
   fleeBelow: 0.3, // keeps its distance and bolts you down (M13)
   gold: [20, 40],
+  spriteKey: 'necromancer',
   ranged: { damage: [2, 8], range: 6, glyph: '*', color: '#5d275d', label: 'shadow bolt' },
 };
 
@@ -207,6 +215,7 @@ export const STONE_GOLEM: MonsterSpecies = {
   sight: 6,
   xp: 55,
   ai: 'dumb',
+  spriteKey: 'stone_golem',
   // No gold (it's stone) but a gem is lodged in its core.
   loot: () => [item('gem')],
 };
@@ -234,6 +243,7 @@ export const LICH: MonsterSpecies = {
     { atHpFrac: 0.66, summon: { species: SKELETON, count: 2 } },
     { atHpFrac: 0.33, summon: { species: SKELETON, count: 2 }, speedMult: 0.8 },
   ],
+  spriteKey: 'lich',
   // The Amulet of Dawn is the quest McGuffin (plan M14): carry it back to the
   // dawn-sealed gates on level 1 to win the game.
   loot: () => [item('amulet_dawn'), item('potion_heal'), item('gem')],

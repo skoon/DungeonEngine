@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "image": "doors.png",
+    "size": {
+      "w": 512,
+      "h": 160
+    },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "brick_door": {
+      "x": 0,
+      "y": 0,
+      "w": 128,
+      "h": 160
+    },
+    "crypt_door": {
+      "x": 128,
+      "y": 0,
+      "w": 128,
+      "h": 160
+    },
+    "catacomb_door": {
+      "x": 256,
+      "y": 0,
+      "w": 128,
+      "h": 160
+    },
+    "sanctum_door": {
+      "x": 384,
+      "y": 0,
+      "w": 128,
+      "h": 160
+    }
+  }
+}

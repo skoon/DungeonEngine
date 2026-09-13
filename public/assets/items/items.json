@@ -1,0 +1,78 @@
+{
+  "meta": {
+    "image": "items.png",
+    "size": {
+      "w": 176,
+      "h": 16
+    },
+    "palette": "sweetie-16"
+  },
+  "frames": {
+    "item_sword": {
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_dagger": {
+      "x": 16,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_spear": {
+      "x": 32,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_armor": {
+      "x": 48,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_wooden_shield": {
+      "x": 64,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_bundle_of_food": {
+      "x": 80,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_potion_heal": {
+      "x": 96,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_iron_key": {
+      "x": 112,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_torch": {
+      "x": 128,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_jewels": {
+      "x": 144,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    },
+    "item_amulet_dawn": {
+      "x": 160,
+      "y": 0,
+      "w": 16,
+      "h": 16
+    }
+  }
+}

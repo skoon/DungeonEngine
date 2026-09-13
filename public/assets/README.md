@@ -9,6 +9,10 @@ The loader (`src/render/sprites.ts`) looks for exactly these atlases:
 assets/walls/walls.json            + the PNG it names
 assets/monsters/monsters.json      + PNG
 assets/items/items.json            + PNG
+assets/floor/floor.json            + PNG
+assets/doors/doors.json            + PNG
+assets/details/details.json        + PNG
+assets/portraits/portraits.json    + PNG
 assets/ui/frames.json              + PNG
 assets/projectiles/projectiles.json + PNG
 ```
@@ -26,6 +30,9 @@ Requirements for incoming art (full spec: `docs/SPRITE_INTEGRATION_PLAN.md`
   strip width. 9-slice frames add `slice_top/bottom/left/right`.
 - Naming: `<tileset>_front_<row>` / `<tileset>_side_<row>` (rows 0–3, side
   authored facing right), `<species>_<pose>_walk_tier<row>` (pose front|side|back),
+  `floor_<kind>` (`pit`, `plate`, `teleporter`, `altar`, `stairs`, `victory`),
+  `<tileset>_door`, `detail_<kind>` (`button`, `lever`, `alcove`, `inscription`,
+  `secret_hint`, `illusion_shimmer`),
   `item_<templateId>`, `portrait_<race>_<sex>_<age>`,
   `projectile_<label_slug>_tier<row>`, `ui_chrome_frame`.
 
